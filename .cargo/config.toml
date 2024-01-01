@@ -1,0 +1,23 @@
+[build]
+target = "thumbv6m-none-eabi"
+
+[target.'cfg(all(target_arch = "arm", target_os = "none"))']
+# runner = "probe-rs run --chip RP2040 --protocol swd"
+# runner = "elf2uf2-rs -d"
+# runner = "elf2uf2-rs -d -s"
+runner = [
+  "sh",
+  "-c",
+  """openocd \
+    -f interface/ftdi/dp_busblaster_kt-link.cfg \
+    -c \"adapter speed 2500\" \
+    -f target/rp2040.cfg \
+    -c \"program $0 verify reset exit\"""",
+]
+
+rustflags = [
+  "-C", "linker=flip-link",
+  "-C", "link-arg=--nmagic",
+  "-C", "link-arg=-Tlink.x",
+  "-C", "no-vectorize-loops",
+]
