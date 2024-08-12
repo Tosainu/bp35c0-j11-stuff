@@ -1,0 +1,48 @@
+name: CI
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        rust:
+          - 1.80.1
+          - stable
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4.1.7
+      - name: Setup Rust toolchains
+        run: |
+          rustup toolchain update "${{ matrix.rust }}" --no-self-update
+          rustup default "${{ matrix.rust }}"
+          rustup target add thumbv6m-none-eabi
+      - run: cargo check
+      - run: cargo test --target "$(rustc -vV | grep host | cut -d' ' -f2)"
+
+  fmt:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4.1.7
+      - name: Setup Rust toolchains
+        run: |
+          rustup toolchain update stable --no-self-update
+          rustup default stable
+          rustup target add thumbv6m-none-eabi
+          rustup component add clippy rustfmt
+      - run: cargo fmt --check
+
+  clippy:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4.1.7
+      - name: Setup Rust toolchains
+        run: |
+          rustup toolchain update stable --no-self-update
+          rustup default stable
+          rustup target add thumbv6m-none-eabi
+          rustup component add clippy rustfmt
+      - run: cargo clippy -- -D warnings
