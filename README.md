@@ -5,16 +5,16 @@ Wi-SUN モジュール [RHOM BP35C0-J11][bp35c0-j11] で遊んだり、ついで
 - [`bp35c0-j11`](./bp35c0-j11)
     - BS35C0-J11 のコマンド・レスポンスを扱うライブラリ
     - RP2040 でも動かすために `no_std` (要 `alloc`) も想定
-    - B ルート接続とデータ送受信に必要なコマンドにフォーカスしていているので、それ以外のコマンドは基本的に未対応
+    - 現状 B ルート接続とデータ送受信に必要なコマンドにフォーカスしていて、それ以外のコマンドは基本的に未対応
 - [`rp2040-log-to-cdc`](./rp2040-log-to-cdc)
     - 後述の RP2040 + BS35C0-J11 の検証環境で、スマートメーターに接続したり取得したデータを USB CDC 経由でダラダラながすやつ
     - モジュールとなにかするだけなら USB-UART 直結で済みそうだけど、いい感じの小物パーツが手元になくてリセットピンとかの制御に悩んだので RP2040 経由で動かすことにした、という経緯
-    - 現時点では起動後アクティブスキャンをかけてスマートメーターがいそうなチャンネル探してBルート接続 & 認証、スマートメーターの時刻や瞬時電力を読み出し、という動作をする  
+    - 現時点では起動後アクティブスキャンをかけてスマートメーターがいそうなチャンネルを探索、Bルート接続 & PANA 認証、スマートメーターの時刻や瞬時電力を読み出し、という動作をする  
 ![echonet](https://github.com/user-attachments/assets/b097a747-6711-4857-98f0-15640ad2191b)
 
 ## ソースコードのビルドとテスト
 
-リポジトリにあるコードはすくなくとも Rust 1.80.1 (stable) で動きます。ただし [`.cargo/config.toml`](./.cargo/config.toml) でデフォルトのターゲットを `thumbv6m-none-eabi` にしているので、それを追加するか必要に応じて `--target <TRIPLE>` を渡してください。[rustup][rustup] がインストールされている場合、例えば次の手順でビルドできます。
+リポジトリにあるコードはすくなくとも Rust 1.80.1 (stable) で動きます。ただし [`.cargo/config.toml`](./.cargo/config.toml) でデフォルトのターゲットを `thumbv6m-none-eabi` にしているので、それを追加するか必要に応じて `--target <TRIPLE>` を渡します。[rustup][rustup] がインストールされている場合、例えば次の手順でビルドできます。
 
     $ rustup target add thumbv6m-none-eabi
     $ cargo build
@@ -71,11 +71,11 @@ Raspberry Pi Pico 向けにビルドした場合の接続は次を想定して�
 
 ### Bus Blaster v3 で SWD
 
-変更したプログラムを RP2040 で動かすために毎回 USB ケーブルつなぎなおしてるのが面倒になったのと流行りの [probe-rs][probe-rs] にあこがれて、[このとき][bus-blaster-blog]買っていた JTAG デバッガー [Bus Blaster v3](http://dangerousprototypes.com/docs/Bus_Blaster_v3_design_overview)を出してきました。
+変更したプログラムを RP2040 で動かすために毎回 USB ケーブルつなぎなおしてるのが面倒になったのと、流行りの [probe-rs][probe-rs] にあこがれて、[このとき][bus-blaster-blog]買っていた JTAG デバッガー [Bus Blaster v3](http://dangerousprototypes.com/docs/Bus_Blaster_v3_design_overview) を出してきました。
 
 ![](https://github.com/user-attachments/assets/97ed3ea5-6ab5-46a6-8e4d-32c995282985)
 
-[このリポジトリ][bus-blaster-ktlink]の `system.svf` を CPLD に書き込んで、Feather RP2040 の裏面パッドからひっぱってきた SWD のポートと接続して、ひとまず OpenOCD で認識。GDB でロードやデバッグ、などもできました。
+Bus Blaster v3 を KT-link 互換にするたんめ、[このリポジトリ][bus-blaster-ktlink]の `system.svf` を CPLD に書き込みました。Feather RP2040 の裏面パッドからひっぱってきた SWD のポートと接続するとあっさり OpenOCD で認識。GDB でロードやデバッグ、などもできました。
 
     $ openocd --version
     Open On-Chip Debugger 0.12.0
@@ -105,7 +105,7 @@ Raspberry Pi Pico 向けにビルドした場合の接続は次を想定して�
     Info : starting gdb server for rp2040.core1 on 3334
     Info : Listening on port 3334 for gdb connections
 
-と、ここで probe-run は FTDI ベースのデバッガーの SWD に (少なくとも現時点では) 対応していないのに気づきます。残念。また GDB も、semihosting/RTT などを試していくとプログラムによっては挙動があやしい (?) ことがあり、結局このリポジトリの開発での採用は断念。
+と、ここで probe-rs は FTDI ベースのデバッガーの SWD に (少なくとも現時点では) 対応していないのに気づきます。残念。また GDB も、semihosting/RTT などを試していくとプログラムによっては挙動があやしい (?) ことがあり、結局このリポジトリの開発で採用するのは断念。
 
 それでも SWD でプログラムをロードさせるのは諦めきれず、いろいろ調査のうえ OpenOCD 単体で書き込めるのがわかりました。また、`.cargo/config.toml` から [`runner`][cargo-runner] を次のように設定して、`cargo run` で OpenOCD が立ち上がって書き込み & 実行できました。
 
