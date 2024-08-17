@@ -6,6 +6,7 @@ updates:
       interval: monthly
   - package-ecosystem: cargo
     directories:
+      - /
       - /bp35c0-j11
       - /rp2040-log-to-cdc
     schedule:
