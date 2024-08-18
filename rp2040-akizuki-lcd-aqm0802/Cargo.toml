@@ -1,0 +1,16 @@
+[package]
+name = "rp2040-akizuki-lcd-aqm0802"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies.adafruit-feather-rp2040]
+version = "0.8.0"
+
+[dependencies.cortex-m]
+version = "0.7.7"
+
+[dependencies.cortex-m-rt]
+version = "0.7.3"
+
+[dependencies.embedded-hal]
+version = "1.0.0"

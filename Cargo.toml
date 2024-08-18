@@ -3,6 +3,7 @@ resolver = "2"
 members = [
   "bp35c0-j11",
   "rp2040-log-to-cdc",
+  "rp2040-akizuki-lcd-aqm0802",
 ]
 
 [workspace.dependencies.bp35c0-j11]
