@@ -68,20 +68,20 @@ const SECRETS_ROUTE_B_PASSWORD: &[u8] = env!("SECRETS_ROUTE_B_PASSWORD").as_byte
 fn configure_pins(
     pins: bsp::Pins,
 ) -> (
-    impl hal::uart::ValidUartPinout<hal::pac::UART0>,
+    impl hal::uart::ValidUartPinout<hal::pac::UART1>,
     impl OutputPin,
     impl OutputPin,
 ) {
     #[cfg(feature = "adafruit-feather-rp2040")]
     return (
-        (pins.tx.into_function(), pins.rx.into_function()),
-        pins.d24.into_push_pull_output(),
-        pins.d25.into_push_pull_output(),
+        (pins.d24.into_function(), pins.d25.into_function()),
+        pins.d11.into_push_pull_output(),
+        pins.d10.into_push_pull_output(),
     );
 
     #[cfg(feature = "rp-pico")]
     return (
-        (pins.gpio0.into_function(), pins.gpio1.into_function()),
+        (pins.gpio4.into_function(), pins.gpio5.into_function()),
         pins.gpio10.into_push_pull_output(),
         pins.gpio11.into_push_pull_output(),
     );
@@ -121,9 +121,9 @@ fn main() -> ! {
         sio.gpio_bank0,
         &mut pac.RESETS,
     );
-    let (pins_uart0, mut pin_reset_n, mut pin_txs0108e_oe) = configure_pins(pins);
+    let (pins_uart, mut pin_reset_n, mut pin_txs0108e_oe) = configure_pins(pins);
 
-    let mut uart0 = UartPeripheral::new(pac.UART0, pins_uart0, &mut pac.RESETS)
+    let mut uart = UartPeripheral::new(pac.UART1, pins_uart, &mut pac.RESETS)
         .enable(
             UartConfig::new(115_200.Hz(), DataBits::Eight, None, StopBits::One),
             clocks.peripheral_clock.freq(),
@@ -156,7 +156,7 @@ fn main() -> ! {
         }
 
         let mut rx_buf = [0; 32];
-        if let Ok(len) = uart0.read_raw(&mut rx_buf) {
+        if let Ok(len) = uart.read_raw(&mut rx_buf) {
             for resp in rx_buf[0..len].iter().flat_map(|&c| parser.parse(c)) {
                 write!(usb_cdc.borrow_mut(), "[+] Rx: {:#x?}\r\n", resp).unwrap();
                 if let State::WaitForResponse(ref mut f) = state {
@@ -379,7 +379,7 @@ fn main() -> ! {
                 buf,
                 sent,
                 next_state,
-            } => match uart0.write(&buf[sent..]) {
+            } => match uart.write(&buf[sent..]) {
                 Ok(len) => {
                     if buf.len() >= sent + len {
                         state = *next_state;
