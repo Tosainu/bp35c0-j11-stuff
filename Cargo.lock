@@ -353,6 +353,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rp2040-adt7310"
+version = "0.1.0"
+dependencies = [
+ "adafruit-feather-rp2040",
+ "cortex-m",
+ "cortex-m-rt",
+ "embedded-hal 0.2.7",
+ "embedded-hal 1.0.0",
+ "embedded-io",
+]
+
+[[package]]
 name = "rp2040-akizuki-lcd-aqm0802"
 version = "0.1.0"
 dependencies = [

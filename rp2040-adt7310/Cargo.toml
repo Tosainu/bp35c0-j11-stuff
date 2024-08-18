@@ -1,0 +1,24 @@
+[package]
+name = "rp2040-adt7310"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies.adafruit-feather-rp2040]
+version = "0.8.0"
+
+[dependencies.cortex-m]
+version = "0.7.7"
+
+[dependencies.cortex-m-rt]
+version = "0.7.3"
+
+[dependencies.embedded-hal]
+version = "1.0.0"
+
+[dependencies.embedded_hal_0_2_x]
+package = "embedded-hal"
+version = "0.2.7"
+features = ["unproven"]
+
+[dependencies.embedded-io]
+version = "0.6.1"
