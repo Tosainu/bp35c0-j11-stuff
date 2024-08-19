@@ -3,6 +3,10 @@ name = "rp2040-adt7310"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "rp2040-adt7310"
+test = false
+
 [dependencies.adafruit-feather-rp2040]
 version = "0.8.0"
 

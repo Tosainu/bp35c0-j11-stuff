@@ -108,7 +108,7 @@ fn main() -> ! {
 
         let temp = i16::from_be_bytes([buf[1], buf[2]]);
         let temp_int = temp / 128;
-        let temp_frac = 78125_u32 * (temp % 128).abs() as u32;
+        let temp_frac = 78125_u32 * (temp % 128).unsigned_abs() as u32;
         write!(
             uart,
             "\r\ntemp = {:3}.{:07} ({:#06x})",
