@@ -7,9 +7,6 @@ members = [
   "rp2040-adt7310",
 ]
 
-[workspace.dependencies.bp35c0-j11]
-path = "bp35c0-j11"
-
 # cargo build/run
 [profile.dev]
 codegen-units = 1

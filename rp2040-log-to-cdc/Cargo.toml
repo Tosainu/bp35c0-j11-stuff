@@ -12,8 +12,8 @@ default = ["adafruit-feather-rp2040"]
 adafruit-feather-rp2040 = ["dep:adafruit-feather-rp2040"]
 rp-pico = ["dep:rp-pico"]
 
-[dependencies]
-bp35c0-j11.workspace = true
+[dependencies.bp35c0-j11]
+path = "../bp35c0-j11"
 
 [dependencies.adafruit-feather-rp2040]
 version = "0.8.0"
