@@ -11,12 +11,18 @@ Wi-SUN モジュール [RHOM BP35C0-J11][bp35c0-j11] で遊んだり、ついで
     - モジュールとなにかするだけなら USB-UART 直結で済みそうだけど、いい感じの小物パーツが手元になくてリセットピンとかの制御に悩んだので RP2040 経由で動かすことにした、という経緯
     - 現時点では起動後アクティブスキャンをかけてスマートメーターがいそうなチャンネルを探索、Bルート接続 & PANA 認証、スマートメーターの時刻や瞬時電力を読み出し、という動作をする  
 ![echonet](https://github.com/user-attachments/assets/b097a747-6711-4857-98f0-15640ad2191b)
+- [`rp2040-akizuki-lcd-aqm0802`](./rp2040-akizuki-lcd-aqm0802) (BP35C0-J11 と関係なし)
+    - LCD 動作確認と制御方法確認のため実装
+- [`rp2040-adt7310`](./rp2040-adt7310) (BP35C0-J11 と関係なし)
+    - 温度センサーの動作確認と制御方法確認のため実装
+    - 測定値を RP2040 の UART0 に書き出す
 
 ## ソースコードのビルドとテスト
 
-リポジトリにあるコードはすくなくとも Rust 1.80.1 (stable) で動きます。ただし [`.cargo/config.toml`](./.cargo/config.toml) でデフォルトのターゲットを `thumbv6m-none-eabi` にしているので、それを追加するか必要に応じて `--target <TRIPLE>` を渡します。[rustup][rustup] がインストールされている場合、例えば次の手順でビルドできます。
+リポジトリにあるコードはすくなくとも Rust 1.80.1 (stable) で動きます。ただし [`.cargo/config.toml`](./.cargo/config.toml) でデフォルトのターゲットを `thumbv6m-none-eabi` にしているので、それを追加するか必要に応じて `--target <TRIPLE>` を渡します。また [rp-rs/rp2040-project-template][rp2040-template] にならって [flip-link][flip-link] を指定しているので、こちらも必要です。[rustup][rustup] がインストールされている場合、例えば次の手順でビルドできます。
 
     $ rustup target add thumbv6m-none-eabi
+    $ cargo install flip-link
     $ cargo build
 
 テストコードはホストの環境で直接実行できます。例えば次のコマンドを実行すると、`.cargo/config.toml` の設定関係なしにホスト向けにテストコードがビルド・実行されるはずです。
@@ -45,14 +51,14 @@ Wi-SUN モジュール [RHOM BP35C0-J11][bp35c0-j11] で遊んだり、ついで
 
 ### 接続
 
-Feather RP2040 と SPRESENSE-WiSUN-EVK-70 は次のように接続しています。
+Feather RP2040 と SPRESENSE-WiSUN-EVK-70 は次のように接続しています。ユニバーサル基板実装にともない、ピン割り当てを上記画像のものから変更しています。
 
 | Feather RP2040 | SPRESENSE-WiSUN-EVK-70 | メモ |
 | --- | --- | --- |
-| `TX` | `UARTT2_TX` (J-2 - 2) | |
-| `RX` | `UARTT2_RX` (J-2 - 3) | |
-| `D24` | `GPIO1` (J-4 - 4) | BP35C0-J11 の `RESETN` にレベルシフター TXS0108E を介して接続されている |
-| `D25` | `GPIO2` (J-4 - 5) | TXS0108E の `OE` に接続されている |
+| `D24` | `UARTT2_TX` (J-2 - 2) | |
+| `D25` | `UARTT2_RX` (J-2 - 3) | |
+| `D11` | `GPIO1` (J-4 - 4) | BP35C0-J11 の `RESETN` にレベルシフター TXS0108E を介して接続されている |
+| `D10` | `GPIO2` (J-4 - 5) | TXS0108E の `OE` に接続されている |
 | `3.3V` | `3.3V` (J-1 - 1) | TXS0108E の `VCCB` (BP35C0-J11 側) の電源 |
 | `3.3V` | `1.8V` (J-4 - 2) | TXS0108E の `VCCA` (SPRESENSE 側) の電源 (今回は RP2040 とつなぐので 3.3 V で問題なし) |
 | `GND` | `GND` (J-2 - 1) | SPRESENSE-WiSUN-EVK-70 側は `GND` (J3 - 1) でも可 |
@@ -61,8 +67,8 @@ Raspberry Pi Pico 向けにビルドした場合の接続は次を想定して�
 
 | Raspberry Pi Pico | SPRESENSE-WiSUN-EVK-70 |
 | --- | --- |
-| `GP0` | `UARTT2_TX` (J-2 - 2) |
-| `GP1` | `UARTT2_RX` (J-2 - 3) |
+| `GP4` | `UARTT2_TX` (J-2 - 2) |
+| `GP5` | `UARTT2_RX` (J-2 - 3) |
 | `GP10` | `GPIO1` (J-4 - 4) |
 | `GP11` | `GPIO2` (J-4 - 5) |
 | `3V3V(OUT)` | `3.3V` (J-1 - 1) |
@@ -122,9 +128,37 @@ runner = [
 ]
 ```
 
+## ユニバーサル基板実装
+
+ユニバーサル基板実装に実装しました。ついでに眠らせていた LCD と温度センサーを空いたスペースに実装しました。
+
+![DSC_3020-Edit](https://github.com/user-attachments/assets/86eeea2a-759b-4d7c-aec3-c6f8b27b8ed1)
+
+### パーツリスト
+
+Feather RP2040 と SPRESENSE-WiSUN-EVK-701 はリストから除いています。
+
+| パーツ | 仕様 | 個数 | メモ |
+| --- | --- | --: | --- |
+| ユニバーサル基板 | 片面 95×72mm | 1 | 秋月 [103230](https://akizukidenshi.com/catalog/g/g103230/) |
+| ピンソケット | 1x12 pin | 1 | 秋月 [110101](https://akizukidenshi.com/catalog/g/g110101/), Feather RP2040 用 (1) |
+| ピンソケット | 1x16 pin | 1 | 秋月 [110103](https://akizukidenshi.com/catalog/g/g110103/), Feather RP2040 用 (2) |
+| 低背ピンソケット | 1x14 pin | 2 | 秋月 [100661](https://akizukidenshi.com/catalog/g/g100661/), SPRESENSE-WiSUN-EVK-701 用にカットせず使用 少しキツかった, 理想は[これ](https://www.connect.co.jp/products/detail/1434) |
+| ピンヘッダー | 1xN | 適量 | デバッグ用との電源や UART 引き出し用 |
+| LCD | I2C 接続 8x2行 | 1 | 秋月 [109109](https://akizukidenshi.com/catalog/g/g109109/) 相当, ドライバー IC として ST7032 を搭載 |
+| 温度センサー | SPI 接続 | 1 | 秋月 [106708](https://akizukidenshi.com/catalog/g/g106708/) 相当, ADT7310 を搭載 |
+
+### 接続
+
+追加の LCD と温度センサー以外は前述したとおり。自分の作業メモ程度のものであるうえ、その時の都合からペイント系ソフトで描いています。ちゃんとやるならベクター形式で扱いたいところ。背景は秋月の寸法図から引用したものです[^quote-akizuki]。
+
+![rp2040-bp35c0-j11](https://github.com/user-attachments/assets/6aea4c24-fff2-4376-8abf-084f22794535)
+
+[^quote-akizuki]: 非商業的かつ個人的な目的での「使用」のため、この引用は大丈夫なはず… ただし色の変更やパターンの書き込みが「改変」にあたらないかは不安 https://akizukidenshi.com/catalog/pages/terms_of_service.aspx
+
 ## 今後の展望
 
-- [ ] ブレッドボードにテープ固定つらい → 基板おこしちゃう？
+- [x] ブレッドボードにテープ固定つらい → 基板おこしちゃう？
     - 基板おこすのずっとやってみたいなーとおもいつつ、初めてにちょうどいい難易度の題材がなくできていなかった これならよさそう
     - ただ簡単すぎて、2.54mm ピッチのパーツしかないしユニバーサル基板でいいのでは…? ってなりつつある
 - [ ] ECHONET Lite 関連のコード追加してエンコード・デコードする
@@ -198,3 +232,4 @@ runner = [
 [rp2040-template]: https://github.com/rp-rs/rp2040-project-template/tree/4cfa8a7d7b2991f77d85199b9d65296d54ced071
 [rp2040-template-license]: https://github.com/rp-rs/rp2040-project-template/blob/4cfa8a7d7b2991f77d85199b9d65296d54ced071/MIT
 [rp2040-hal]: https://docs.rs/rp2040-hal/latest/rp2040_hal/
+[flip-link]: https://github.com/knurling-rs/flip-link
