@@ -10,7 +10,7 @@
 
 use std::env;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Write};
+use std::io::Write;
 use std::path::PathBuf;
 
 fn main() {
@@ -32,23 +32,4 @@ fn main() {
     {
         println!("cargo:rustc-link-arg=-Tdefmt.x");
     }
-
-    let (id, password) = File::open("secrets.txt")
-        .and_then(|file| {
-            let mut file = BufReader::new(file);
-            let mut id = String::new();
-            file.read_line(&mut id)?;
-            let mut password = String::new();
-            file.read_line(&mut password)?;
-            Ok((id, password))
-        })
-        .unwrap_or_else(|_| {
-            (
-                "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx".into(),
-                "xxxxxxxxxxxx".into(),
-            )
-        });
-    println!("cargo:rustc-env=SECRETS_ROUTE_B_ID={id}");
-    println!("cargo:rustc-env=SECRETS_ROUTE_B_PASSWORD={password}");
-    println!("cargo:rerun-if-changed=secrets.txt");
 }
