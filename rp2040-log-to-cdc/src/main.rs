@@ -3,7 +3,6 @@
 
 use core::cell::RefCell;
 use core::ops::DerefMut;
-use core::panic::PanicInfo;
 
 extern crate alloc;
 use alloc::boxed::Box;
@@ -35,10 +34,14 @@ use bp35c0_j11::*;
 #[global_allocator]
 static ALLOCATOR: Heap = Heap::empty();
 
+#[cfg(not(feature = "defmt"))]
 #[panic_handler]
-fn panic(_: &PanicInfo) -> ! {
+fn panic(_: &core::panic::PanicInfo) -> ! {
     loop {}
 }
+
+#[cfg(feature = "defmt")]
+use {defmt_rtt as _, panic_probe as _};
 
 enum State<'a> {
     Start,

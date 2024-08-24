@@ -1,8 +1,6 @@
 #![no_std]
 #![no_main]
 
-use core::panic::PanicInfo;
-
 use adafruit_feather_rp2040 as bsp;
 
 use bsp::{entry, hal, XOSC_CRYSTAL_FREQ};
@@ -18,10 +16,14 @@ use embedded_hal::{delay::DelayNs, digital::OutputPin, spi::MODE_3};
 use embedded_hal_0_2_x::blocking::spi::{Transfer as SpiTransfer, Write as SpiWrite};
 use embedded_io::Write;
 
+#[cfg(not(feature = "defmt"))]
 #[panic_handler]
-fn panic(_: &PanicInfo) -> ! {
+fn panic(_: &core::panic::PanicInfo) -> ! {
     loop {}
 }
+
+#[cfg(feature = "defmt")]
+use {defmt_rtt as _, panic_probe as _};
 
 #[entry]
 fn main() -> ! {

@@ -28,6 +28,11 @@ fn main() {
     // `memory.x` is changed.
     println!("cargo:rerun-if-changed=memory.x");
 
+    #[cfg(feature = "defmt")]
+    {
+        println!("cargo:rustc-link-arg=-Tdefmt.x");
+    }
+
     let (id, password) = File::open("secrets.txt")
         .and_then(|file| {
             let mut file = BufReader::new(file);

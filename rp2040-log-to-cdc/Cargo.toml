@@ -11,17 +11,40 @@ test = false
 default = ["adafruit-feather-rp2040"]
 adafruit-feather-rp2040 = ["dep:adafruit-feather-rp2040"]
 rp-pico = ["dep:rp-pico"]
+defmt = [
+  "dep:defmt",
+  "dep:defmt-rtt",
+  "dep:panic-probe",
+  "rp2040-hal/defmt",
+]
 
 [dependencies.bp35c0-j11]
 path = "../bp35c0-j11"
 
 [dependencies.adafruit-feather-rp2040]
 version = "0.8.0"
+default-features = false
+features = [
+  "boot2",
+  "critical-section-impl",
+  "rom-func-cache",
+  "rt",
+]
 optional = true
 
 [dependencies.rp-pico]
 version = "0.9.0"
+default-features = false
+features = [
+  "boot2",
+  "critical-section-impl",
+  "rom-func-cache",
+  "rt",
+]
 optional = true
+
+[dependencies.rp2040-hal]
+version = "0.10.2"
 
 [dependencies.cortex-m]
 version = "0.7.7"
@@ -43,3 +66,17 @@ version = "0.3.2"
 
 [dependencies.usbd-serial]
 version = "0.2.2"
+
+[dependencies.defmt]
+version = "0.3.8"
+optional = true
+
+[dependencies.defmt-rtt]
+version = "0.4.1"
+optional = true
+
+[dependencies.panic-probe]
+version = "0.3.2"
+default-features = false
+features = ["print-defmt"]
+optional = true
