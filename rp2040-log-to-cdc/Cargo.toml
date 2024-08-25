@@ -22,6 +22,9 @@ defmt = [
 [dependencies.bp35c0-j11]
 path = "../bp35c0-j11"
 
+[dependencies.route-b-secrets]
+path = "../route-b-secrets"
+
 [dependencies.adafruit-feather-rp2040]
 version = "0.8.0"
 default-features = false

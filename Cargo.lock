@@ -516,6 +516,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 
 [[package]]
+name = "route-b-secrets"
+version = "0.1.0"
+
+[[package]]
 name = "rp-pico"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -645,6 +649,7 @@ dependencies = [
  "embedded-hal 1.0.0",
  "embedded-io",
  "panic-probe",
+ "route-b-secrets",
  "rp-pico",
  "rp2040-hal",
  "usb-device",

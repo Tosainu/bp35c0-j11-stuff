@@ -11,6 +11,8 @@ Wi-SUN モジュール [RHOM BP35C0-J11][bp35c0-j11] で遊んだり、ついで
     - モジュールとなにかするだけなら USB-UART 直結で済みそうだけど、いい感じの小物パーツが手元になくてリセットピンとかの制御に悩んだので RP2040 経由で動かすことにした、という経緯
     - 現時点では起動後アクティブスキャンをかけてスマートメーターがいそうなチャンネルを探索、Bルート接続 & PANA 認証、スマートメーターの時刻や瞬時電力を読み出し、という動作をする  
 ![echonet](https://github.com/user-attachments/assets/b097a747-6711-4857-98f0-15640ad2191b)
+- [`route-b-secrets`](./route-b-secrets)
+    - Bルート認証ID やパスワードなどを雑にバイナリに埋め込むためのライブラリ
 - [`rp2040-akizuki-lcd-aqm0802`](./rp2040-akizuki-lcd-aqm0802) (BP35C0-J11 と関係なし)
     - LCD 動作確認と制御方法確認のため実装
 - [`rp2040-adt7310`](./rp2040-adt7310) (BP35C0-J11 と関係なし)
@@ -31,7 +33,12 @@ Wi-SUN モジュール [RHOM BP35C0-J11][bp35c0-j11] で遊んだり、ついで
 
 ### Bルート認証ID 等の埋め込み
 
-`rp2040-log-to-cdc` は、Bルート認証ID とパスワードをバイナリに埋め込むため [`build.rs`](./rp2040-log-to-cdc/build.rs) でゴニョゴニョしています。埋め込む値を変更するには、`rp2040-log-to-cdc/secret.txt` を作成し、1行目に Bルート認証ID、2行目にパスワードを記述してビルドしなおします。
+Bルート認証ID とパスワードをバイナリに埋め込むため [`route-b-secrets/build.rs`](./route-b-secrets/build.rs) でゴニョゴニョしています。埋め込む値を変更するには、Bルート認証ID とパスワードを記述した `route-b-secrets/src/secrets.rs` を作成してビルドしなおします。
+
+```rust
+pub const ROUTE_B_ID: &[u8; 32] = b"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+pub const ROUTE_B_PASSWORD: &[u8; 12] = b"xxxxxxxxxxxx";
+```
 
 ### ターゲット RP2040 基板の変更
 

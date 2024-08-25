@@ -30,6 +30,7 @@ use usb_device::class_prelude::*;
 use usb_device::device::{StringDescriptors, UsbDeviceBuilder, UsbDeviceState, UsbVidPid};
 
 use bp35c0_j11::*;
+use route_b_secrets::*;
 
 #[global_allocator]
 static ALLOCATOR: Heap = Heap::empty();
@@ -64,9 +65,6 @@ enum State<'a> {
         next_state: Box<State<'a>>,
     },
 }
-
-const SECRETS_ROUTE_B_ID: &[u8] = env!("SECRETS_ROUTE_B_ID").as_bytes();
-const SECRETS_ROUTE_B_PASSWORD: &[u8] = env!("SECRETS_ROUTE_B_PASSWORD").as_bytes();
 
 fn configure_pins(
     pins: bsp::Pins,
@@ -245,7 +243,7 @@ fn main() -> ! {
                         duration: ScanDuration::T616p96ms,
                         mask_channels: 0x3fff0,
                         pairing_id: Some(u64::from_be_bytes(
-                            SECRETS_ROUTE_B_ID[24..32].try_into().unwrap(),
+                            ROUTE_B_ID[24..32].try_into().unwrap(),
                         )),
                     },
                     Box::new(move |resp| match resp {
@@ -284,8 +282,8 @@ fn main() -> ! {
             State::SetRouteBPanaAuthenticationInformation => {
                 state = send(
                     Command::SetRouteBPanaAuthenticationInformation {
-                        id: SECRETS_ROUTE_B_ID,
-                        password: SECRETS_ROUTE_B_PASSWORD,
+                        id: ROUTE_B_ID,
+                        password: ROUTE_B_PASSWORD,
                     },
                     Box::new(|resp| match resp {
                         Response::SetRouteBPanaAuthenticationInformation { .. } => {
