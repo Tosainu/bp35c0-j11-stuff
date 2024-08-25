@@ -13,6 +13,7 @@ defmt = [
   "dep:defmt-rtt",
   "dep:panic-probe",
   "bp35c0-j11/defmt",
+  "heapless/defmt-03",
   "rp2040-hal/defmt",
 ]
 
@@ -51,6 +52,9 @@ features = ["unproven"]
 
 [dependencies.embedded-io]
 version = "0.6.1"
+
+[dependencies.heapless]
+version = "0.8.0"
 
 [dependencies.rtic]
 version = "2.1.1"
