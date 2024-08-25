@@ -32,7 +32,7 @@ mod app {
     };
 
     use embedded_hal::digital::{OutputPin, StatefulOutputPin};
-    use embedded_hal::spi::MODE_3;
+    use embedded_hal::spi::MODE_3 as SPI_MODE_3;
     use embedded_hal_0_2_x::blocking::i2c::Write as I2cWrite;
     use embedded_hal_0_2_x::blocking::spi::{Transfer as SpiTransfer, Write as SpiWrite};
     use embedded_io::Write;
@@ -142,7 +142,7 @@ mod app {
             &mut resets,
             clocks.peripheral_clock.freq(),
             5.MHz(),
-            MODE_3,
+            SPI_MODE_3,
         );
 
         let spi0_csn_adt7310 = pins.d4.into_push_pull_output_in_state(PinState::High);
