@@ -79,13 +79,14 @@ mod app {
 
     #[shared]
     struct Shared {
-        uart1: UartPeripheral<hal::uart::Enabled, hal::pac::UART1, Uart1Pins>,
+        uart1_tx: hal::uart::Writer<hal::pac::UART1, Uart1Pins>,
         uart1_tx_consumer: heapless::spsc::Consumer<'static, u8, UART_TX_QUEUE_DEPTH>,
     }
 
     #[local]
     struct Local {
         uart0: UartPeripheral<hal::uart::Enabled, hal::pac::UART0, Uart0Pins>,
+        uart1_rx: hal::uart::Reader<hal::pac::UART1, Uart1Pins>,
         uart1_tx_producer: heapless::spsc::Producer<'static, u8, UART_TX_QUEUE_DEPTH>,
         i2c1: I2C<hal::pac::I2C1, I2c1Pins>,
         spi0: Spi<hal::spi::Enabled, hal::pac::SPI0, Spi0Pins>,
@@ -149,6 +150,7 @@ mod app {
             .unwrap();
         uart1.enable_tx_interrupt();
         uart1.enable_rx_interrupt();
+        let (uart1_rx, uart1_tx) = uart1.split();
 
         let i2c1 = I2C::i2c1(
             ctx.device.I2C1,
@@ -188,11 +190,12 @@ mod app {
 
         (
             Shared {
-                uart1,
+                uart1_tx,
                 uart1_tx_consumer,
             },
             Local {
                 uart0,
+                uart1_rx,
                 uart1_tx_producer,
                 i2c1,
                 spi0,
@@ -207,11 +210,11 @@ mod app {
     }
 
     #[idle(
-        shared = [uart1, uart1_tx_consumer]
+        shared = [uart1_tx, uart1_tx_consumer]
     )]
     fn idle(mut ctx: idle::Context) -> ! {
         loop {
-            (&mut ctx.shared.uart1, &mut ctx.shared.uart1_tx_consumer).lock(|uart, tx_queue| {
+            (&mut ctx.shared.uart1_tx, &mut ctx.shared.uart1_tx_consumer).lock(|uart, tx_queue| {
                 while let Some(&c) = tx_queue.peek() {
                     match uart.write(&[c; 1]) {
                         Ok(1) => tx_queue.dequeue().unwrap(),
@@ -387,20 +390,22 @@ mod app {
     #[task(
         priority = 1,
         binds = UART1_IRQ,
-        shared = [uart1, uart1_tx_consumer],
-        local = [bp35c0_j11_parser]
+        shared = [uart1_tx, uart1_tx_consumer],
+        local = [uart1_rx, bp35c0_j11_parser]
     )]
     fn uart1_irq(ctx: uart1_irq::Context) {
-        (ctx.shared.uart1, ctx.shared.uart1_tx_consumer).lock(|uart, tx_queue| {
-            let parser = ctx.local.bp35c0_j11_parser;
-
+        (ctx.shared.uart1_tx, ctx.shared.uart1_tx_consumer).lock(|uart, tx_queue| {
             while let Some(&c) = tx_queue.peek() {
                 match uart.write(&[c; 1]) {
                     Ok(1) => tx_queue.dequeue().unwrap(),
                     _ => break,
                 };
             }
+        });
 
+        {
+            let uart = ctx.local.uart1_rx;
+            let parser = ctx.local.bp35c0_j11_parser;
             let mut rx_buf = [0; 32];
             if let Ok(len) = uart.read_raw(&mut rx_buf) {
                 for resp in rx_buf[0..len].iter().flat_map(|&c| parser.parse(c)) {
@@ -408,6 +413,6 @@ mod app {
                     defmt::info!("Rx: {:?}", resp);
                 }
             }
-        });
+        }
     }
 }
