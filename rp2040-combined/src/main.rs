@@ -12,6 +12,11 @@ fn panic(_: &core::panic::PanicInfo) -> ! {
 #[cfg(feature = "defmt")]
 use {defmt_rtt as _, panic_probe as _};
 
+use embedded_alloc::Heap;
+
+#[global_allocator]
+static ALLOCATOR: Heap = Heap::empty();
+
 #[rtic::app(
     device = bsp::hal::pac,
     peripherals = true,
@@ -19,6 +24,8 @@ use {defmt_rtt as _, panic_probe as _};
 )]
 mod app {
     use crate::bsp;
+
+    use core::mem::MaybeUninit;
 
     use bsp::{hal, XOSC_CRYSTAL_FREQ};
     use hal::{
@@ -82,10 +89,17 @@ mod app {
         txs0108e_oe: Txs0108eOePin,
         lcd_resetn: LcdResetnPin,
         led: LedPin,
+        bp35c0_j11_parser: bp35c0_j11::Parser,
     }
 
     #[init]
     fn init(ctx: init::Context) -> (Shared, Local) {
+        {
+            const HEAP_SIZE: usize = 8 * 1024;
+            static mut HEAP: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
+            unsafe { crate::ALLOCATOR.init(HEAP.as_ptr() as usize, HEAP_SIZE) }
+        }
+
         let mut resets = ctx.device.RESETS;
         let mut watchdog = hal::watchdog::Watchdog::new(ctx.device.WATCHDOG);
 
@@ -117,12 +131,13 @@ mod app {
             .unwrap();
 
         let pins_uart = (pins.d24.into_function(), pins.d25.into_function());
-        let uart1 = UartPeripheral::new(ctx.device.UART1, pins_uart, &mut resets)
+        let mut uart1 = UartPeripheral::new(ctx.device.UART1, pins_uart, &mut resets)
             .enable(
                 UartConfig::new(115_200.Hz(), DataBits::Eight, None, StopBits::One),
                 clocks.peripheral_clock.freq(),
             )
             .unwrap();
+        uart1.enable_rx_interrupt();
 
         let i2c1 = I2C::i2c1(
             ctx.device.I2C1,
@@ -154,6 +169,7 @@ mod app {
         Mono::start(ctx.device.TIMER, &resets);
 
         task2::spawn().unwrap();
+        task_bp35c0_j11_setup::spawn().unwrap();
         task_adt7310::spawn().unwrap();
         task_lcd::spawn().unwrap();
 
@@ -169,6 +185,7 @@ mod app {
                 txs0108e_oe,
                 lcd_resetn,
                 led,
+                bp35c0_j11_parser: bp35c0_j11::Parser::default(),
             },
         )
     }
@@ -180,6 +197,17 @@ mod app {
 
             Mono::delay(100.millis()).await;
         }
+    }
+
+    #[task(
+        priority = 1,
+        local = [bp35c0_j11_resetn, txs0108e_oe]
+    )]
+    async fn task_bp35c0_j11_setup(ctx: task_bp35c0_j11_setup::Context) {
+        ctx.local.txs0108e_oe.set_high().unwrap();
+        Mono::delay(500.millis()).await;
+
+        ctx.local.bp35c0_j11_resetn.set_high().unwrap();
     }
 
     #[task(
@@ -305,6 +333,21 @@ mod app {
             Mono::delay(125.millis()).await;
             i2c.write(LCD_ADDRESS, &[0b01_000000, 0b0110_0100]).unwrap(); // 'd'
             Mono::delay(750.millis()).await;
+        }
+    }
+
+    #[task(
+        priority = 1,
+        binds = UART1_IRQ,
+        local = [uart1, bp35c0_j11_parser]
+    )]
+    fn uart1_irq(ctx: uart1_irq::Context) {
+        let uart = ctx.local.uart1;
+        let parser = ctx.local.bp35c0_j11_parser;
+
+        let mut rx_buf = [0; 32];
+        if let Ok(len) = uart.read_raw(&mut rx_buf) {
+            for _resp in rx_buf[0..len].iter().flat_map(|&c| parser.parse(c)) {}
         }
     }
 }
