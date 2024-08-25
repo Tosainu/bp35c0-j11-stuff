@@ -587,6 +587,7 @@ dependencies = [
  "embedded-io",
  "heapless",
  "panic-probe",
+ "route-b-secrets",
  "rp2040-hal",
  "rtic",
  "rtic-monotonics",

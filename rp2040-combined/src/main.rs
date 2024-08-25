@@ -47,6 +47,8 @@ mod app {
     use rtic_monotonics::rp2040::prelude::*;
     rp2040_timer_monotonic!(Mono);
 
+    use route_b_secrets::{ROUTE_B_ID, ROUTE_B_PASSWORD};
+
     type Uart0TxPin = hal::gpio::Pin<hal::gpio::bank0::Gpio0, FunctionUart, PullDown>;
     type Uart0RxPin = hal::gpio::Pin<hal::gpio::bank0::Gpio1, FunctionUart, PullDown>;
     type Uart0Pins = (Uart0TxPin, Uart0RxPin);
@@ -312,8 +314,73 @@ mod app {
                 }
             }
 
+            let scan_result = 'retry: loop {
+                send(Command::DoActiveScan {
+                    duration: ScanDuration::T616p96ms,
+                    mask_channels: 0x3fff0,
+                    pairing_id: Some(u64::from_be_bytes(ROUTE_B_ID[24..32].try_into().unwrap())),
+                });
+                let mut scan_result = None;
+                'wait_result: while let Ok(resp) = receiver.recv().await {
+                    match resp {
+                        Response::DoActiveScan { result: 0x01 } => match scan_result {
+                            Some(channel) => break 'retry channel,
+                            _ => break 'wait_result,
+                        },
+                        Response::NotificationActiveScan { channel, terminal } => {
+                            if !terminal.is_empty() {
+                                scan_result.replace(channel);
+                            }
+                        }
+                        _ => Mono::delay(1.secs()).await,
+                    }
+                }
+            };
+
             #[cfg(feature = "defmt")]
-            defmt::info!("nyan");
+            defmt::info!("scan_result = {}", scan_result);
+
+            'retry: loop {
+                send(Command::SetOperationMode {
+                    mode: OperationMode::Dual,
+                    han_sleep: false,
+                    channel: scan_result,
+                    tx_power: TxPower::P20mW,
+                });
+                match receiver.recv().await {
+                    Ok(Response::SetOperationMode { result: 0x01 }) => break 'retry,
+                    _ => Mono::delay(1.secs()).await,
+                }
+            }
+
+            'retry: loop {
+                send(Command::SetRouteBPanaAuthenticationInformation {
+                    id: ROUTE_B_ID,
+                    password: ROUTE_B_PASSWORD,
+                });
+                match receiver.recv().await {
+                    Ok(Response::SetRouteBPanaAuthenticationInformation { result: 0x01 }) => {
+                        break 'retry
+                    }
+                    _ => Mono::delay(1.secs()).await,
+                }
+            }
+
+            'retry: loop {
+                send(Command::StartRouteBOperation);
+                match receiver.recv().await {
+                    Ok(Response::StartRouteBOperation { result: 0x01, .. }) => break 'retry,
+                    _ => Mono::delay(1.secs()).await,
+                }
+            }
+
+            'retry: loop {
+                send(Command::OpenUdpPort(0x0e1a));
+                match receiver.recv().await {
+                    Ok(Response::OpenUdpPort { result: 0x01, .. }) => break 'retry,
+                    _ => Mono::delay(1.secs()).await,
+                }
+            }
         }
     }
 
