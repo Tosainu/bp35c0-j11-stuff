@@ -5,6 +5,7 @@ members = [
   "rp2040-log-to-cdc",
   "rp2040-akizuki-lcd-aqm0802",
   "rp2040-adt7310",
+  "rp2040-combined",
 ]
 
 # cargo build/run

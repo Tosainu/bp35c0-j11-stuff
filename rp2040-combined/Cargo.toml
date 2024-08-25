@@ -1,0 +1,76 @@
+[package]
+name = "rp2040-combined"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "rp2040-combined"
+test = false
+
+[features]
+defmt = [
+  "dep:defmt",
+  "dep:defmt-rtt",
+  "dep:panic-probe",
+  "rp2040-hal/defmt",
+]
+
+[dependencies.bp35c0-j11]
+path = "../bp35c0-j11"
+
+[dependencies.adafruit-feather-rp2040]
+version = "0.8.0"
+default-features = false
+features = [
+  "boot2",
+  "critical-section-impl",
+  "rom-func-cache",
+  "rt",
+]
+
+[dependencies.rp2040-hal]
+version = "0.10.2"
+
+[dependencies.cortex-m]
+version = "0.7.7"
+
+[dependencies.cortex-m-rt]
+version = "0.7.3"
+
+[dependencies.embedded-alloc]
+version = "0.5.1"
+
+[dependencies.embedded-hal]
+version = "1.0.0"
+
+[dependencies.embedded_hal_0_2_x]
+package = "embedded-hal"
+version = "0.2.7"
+features = ["unproven"]
+
+[dependencies.embedded-io]
+version = "0.6.1"
+
+[dependencies.rtic]
+version = "2.1.1"
+default-features = false
+features = ["thumbv6-backend"]
+
+[dependencies.rtic-monotonics]
+version = "2.0.2"
+default-features = false
+features = ["rp2040"]
+
+[dependencies.defmt]
+version = "0.3.8"
+optional = true
+
+[dependencies.defmt-rtt]
+version = "0.4.1"
+optional = true
+
+[dependencies.panic-probe]
+version = "0.3.2"
+default-features = false
+features = ["print-defmt"]
+optional = true
