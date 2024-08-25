@@ -198,10 +198,10 @@ mod app {
 
         Mono::start(ctx.device.TIMER, &resets);
 
-        task2::spawn().unwrap();
-        task_bp35c0_j11::spawn().unwrap();
         task_adt7310::spawn().unwrap();
+        task_bp35c0_j11::spawn().unwrap();
         task_lcd::spawn().unwrap();
+        task_led_blink::spawn().unwrap();
 
         (
             Shared {
@@ -243,7 +243,7 @@ mod app {
     }
 
     #[task(priority = 2, local = [led])]
-    async fn task2(ctx: task2::Context) {
+    async fn task_led_blink(ctx: task_led_blink::Context) {
         loop {
             ctx.local.led.toggle().unwrap();
 
