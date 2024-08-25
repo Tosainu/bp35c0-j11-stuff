@@ -254,6 +254,8 @@ mod app {
         local = [bp35c0_j11_resetn, txs0108e_oe, uart1_tx_sender, uart1_rx_receiver]
     )]
     async fn task_bp35c0_j11(ctx: task_bp35c0_j11::Context) {
+        use bp35c0_j11::*;
+
         ctx.local.txs0108e_oe.set_high().unwrap();
         Mono::delay(500.millis()).await;
 
@@ -261,29 +263,57 @@ mod app {
 
         Mono::delay(500.millis()).await;
 
-        loop {
-            let mut buf = [0; 128];
-            let len = bp35c0_j11::serialize_to_bytes(
-                &bp35c0_j11::Command::GetVersionInformation,
-                &mut buf,
-            )
-            .unwrap();
-
-            let p = &mut *ctx.local.uart1_tx_sender;
-            if len > p.capacity() - p.len() {
-                defmt::error!("can't send: {}/{}", len, p.capacity() - p.len());
-                return;
-            }
-            for c in buf {
-                unsafe { p.enqueue_unchecked(c) }
-            }
-
-            if let Ok(resp) = ctx.local.uart1_rx_receiver.recv().await {
+        let mut send = {
+            let queue = ctx.local.uart1_tx_sender;
+            move |cmd| {
                 #[cfg(feature = "defmt")]
-                defmt::info!("Rx: {:?}", resp);
+                defmt::info!("Tx: {:?}", cmd);
+
+                let mut buf = [0; 128];
+                let len = bp35c0_j11::serialize_to_bytes(&cmd, &mut buf).unwrap();
+
+                if len > queue.capacity() - queue.len() {
+                    #[cfg(feature = "defmt")]
+                    defmt::error!("can't send: {}/{}", len, queue.capacity() - queue.len());
+                    return;
+                }
+                for c in buf {
+                    unsafe { queue.enqueue_unchecked(c) }
+                }
+            }
+        };
+
+        let receiver = ctx.local.uart1_rx_receiver;
+        loop {
+            'retry: loop {
+                if let Ok(Response::NotificationPoweredOn) = receiver.recv().await {
+                    break 'retry;
+                }
             }
 
-            Mono::delay(1.secs()).await;
+            'retry: loop {
+                send(Command::GetVersionInformation);
+                match receiver.recv().await {
+                    Ok(Response::GetVersionInformation { result: 0x01, .. }) => break 'retry,
+                    _ => Mono::delay(1.secs()).await,
+                }
+            }
+
+            'retry: loop {
+                send(Command::SetOperationMode {
+                    mode: OperationMode::Dual,
+                    han_sleep: false,
+                    channel: Channel::Ch4F922p5MHz,
+                    tx_power: TxPower::P20mW,
+                });
+                match receiver.recv().await {
+                    Ok(Response::SetOperationMode { result: 0x01 }) => break 'retry,
+                    _ => Mono::delay(1.secs()).await,
+                }
+            }
+
+            #[cfg(feature = "defmt")]
+            defmt::info!("nyan");
         }
     }
 
