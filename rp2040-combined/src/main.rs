@@ -153,8 +153,8 @@ mod app {
 
         Mono::start(ctx.device.TIMER, &resets);
 
-        task1::spawn().unwrap();
         task2::spawn().unwrap();
+        task_adt7310::spawn().unwrap();
         task_lcd::spawn().unwrap();
 
         (
@@ -173,23 +173,61 @@ mod app {
         )
     }
 
-    #[task(priority = 1, local = [uart0, x: u32 = 0])]
-    async fn task1(ctx: task1::Context) {
-        loop {
-            *ctx.local.x += 1;
-
-            write!(ctx.local.uart0, "(✗╹◡╹)ﾉ! {}\r\n", ctx.local.x).unwrap();
-
-            Mono::delay(1000.millis()).await;
-        }
-    }
-
     #[task(priority = 1, local = [led])]
     async fn task2(ctx: task2::Context) {
         loop {
             ctx.local.led.toggle().unwrap();
 
             Mono::delay(100.millis()).await;
+        }
+    }
+
+    #[task(
+        priority = 1,
+        local = [spi0, spi0_csn_adt7310, uart0]
+    )]
+    async fn task_adt7310(ctx: task_adt7310::Context) {
+        let spi = ctx.local.spi0;
+        let spi_csn = ctx.local.spi0_csn_adt7310;
+        let uart = ctx.local.uart0;
+
+        {
+            spi_csn.set_low().unwrap();
+            spi.write(&[0xff_u8; 4]).unwrap();
+            spi_csn.set_high().unwrap();
+            Mono::delay(1.millis()).await;
+        }
+
+        loop {
+            spi_csn.set_low().unwrap();
+
+            #[allow(clippy::unusual_byte_groupings)]
+            //                  ┌───── configuration register
+            //                  │         ┌───── Resolution (16-bit)
+            //                  │         │  ┌───── Operation mode (One shot)
+            spi.write(&[0b0_0_001_0_00, 0b1_01_0_0_0_00]).unwrap();
+
+            Mono::delay(240.millis()).await;
+
+            #[allow(clippy::unusual_byte_groupings)]
+            //                     ┌───── temperature value register
+            let mut buf = [0b0_1_010_0_00, 0, 0];
+
+            spi.transfer(buf.as_mut_slice()).unwrap();
+
+            let temp = i16::from_be_bytes([buf[1], buf[2]]);
+            let temp_int = temp / 128;
+            let temp_frac = 78125_u32 * (temp % 128).unsigned_abs() as u32;
+            write!(
+                uart,
+                "\r\ntemp = {:3}.{:07} ({:#06x})",
+                temp_int, temp_frac, temp
+            )
+            .unwrap();
+
+            spi_csn.set_high().unwrap();
+
+            Mono::delay(760.millis()).await;
         }
     }
 
