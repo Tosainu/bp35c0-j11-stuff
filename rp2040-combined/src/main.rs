@@ -75,19 +75,31 @@ mod app {
 
     type LedPin = hal::gpio::Pin<hal::gpio::bank0::Gpio13, FunctionSio<SioOutput>, PullDown>;
 
-    const UART_TX_QUEUE_DEPTH: usize = 256;
+    const UART1_TX_QUEUE_DEPTH: usize = 256;
+    type Uart1TxQueue = heapless::spsc::Queue<u8, UART1_TX_QUEUE_DEPTH>;
+    type Uart1TxSender<'a> = heapless::spsc::Producer<'a, u8, UART1_TX_QUEUE_DEPTH>;
+    type Uart1TxReceiver<'a> = heapless::spsc::Consumer<'a, u8, UART1_TX_QUEUE_DEPTH>;
+
+    const UART1_RX_QUEUE_DEPTH: usize = 4;
+    type Uart1RxQueue = rtic_sync::channel::Channel<bp35c0_j11::Response, UART1_RX_QUEUE_DEPTH>;
+    type Uart1RxSender<'a> =
+        rtic_sync::channel::Sender<'a, bp35c0_j11::Response, UART1_RX_QUEUE_DEPTH>;
+    type Uart1RxReceiver<'a> =
+        rtic_sync::channel::Receiver<'a, bp35c0_j11::Response, UART1_RX_QUEUE_DEPTH>;
 
     #[shared]
     struct Shared {
         uart1_tx: hal::uart::Writer<hal::pac::UART1, Uart1Pins>,
-        uart1_tx_consumer: heapless::spsc::Consumer<'static, u8, UART_TX_QUEUE_DEPTH>,
+        uart1_tx_receiver: Uart1TxReceiver<'static>,
     }
 
     #[local]
     struct Local {
         uart0: UartPeripheral<hal::uart::Enabled, hal::pac::UART0, Uart0Pins>,
+        uart1_tx_sender: Uart1TxSender<'static>,
         uart1_rx: hal::uart::Reader<hal::pac::UART1, Uart1Pins>,
-        uart1_tx_producer: heapless::spsc::Producer<'static, u8, UART_TX_QUEUE_DEPTH>,
+        uart1_rx_sender: Uart1RxSender<'static>,
+        uart1_rx_receiver: Uart1RxReceiver<'static>,
         i2c1: I2C<hal::pac::I2C1, I2c1Pins>,
         spi0: Spi<hal::spi::Enabled, hal::pac::SPI0, Spi0Pins>,
         spi0_csn_adt7310: Spi0CsnAdt7310Pin,
@@ -100,8 +112,8 @@ mod app {
 
     #[init(
         local = [
-            uart1_tx_queue: heapless::spsc::Queue<u8, UART_TX_QUEUE_DEPTH> =
-                heapless::spsc::Queue::new(),
+            uart1_tx_queue: Uart1TxQueue = Uart1TxQueue::new(),
+            uart1_rx_queue: Uart1RxQueue = Uart1RxQueue::new(),
         ]
     )]
     fn init(ctx: init::Context) -> (Shared, Local) {
@@ -150,7 +162,6 @@ mod app {
             .unwrap();
         uart1.enable_tx_interrupt();
         uart1.enable_rx_interrupt();
-        let (uart1_rx, uart1_tx) = uart1.split();
 
         let i2c1 = I2C::i2c1(
             ctx.device.I2C1,
@@ -179,24 +190,28 @@ mod app {
         let lcd_resetn = pins.d5.into_push_pull_output_in_state(PinState::Low);
         let led = pins.d13.into_push_pull_output_in_state(PinState::High);
 
-        let (uart1_tx_producer, uart1_tx_consumer) = ctx.local.uart1_tx_queue.split();
+        let (uart1_rx, uart1_tx) = uart1.split();
+        let (uart1_tx_sender, uart1_tx_receiver) = ctx.local.uart1_tx_queue.split();
+        let (uart1_rx_sender, uart1_rx_receiver) = ctx.local.uart1_rx_queue.split();
 
         Mono::start(ctx.device.TIMER, &resets);
 
         task2::spawn().unwrap();
-        task_bp35c0_j11_setup::spawn().unwrap();
+        task_bp35c0_j11::spawn().unwrap();
         task_adt7310::spawn().unwrap();
         task_lcd::spawn().unwrap();
 
         (
             Shared {
                 uart1_tx,
-                uart1_tx_consumer,
+                uart1_tx_receiver,
             },
             Local {
                 uart0,
+                uart1_tx_sender,
                 uart1_rx,
-                uart1_tx_producer,
+                uart1_rx_sender,
+                uart1_rx_receiver,
                 i2c1,
                 spi0,
                 spi0_csn_adt7310,
@@ -210,11 +225,11 @@ mod app {
     }
 
     #[idle(
-        shared = [uart1_tx, uart1_tx_consumer]
+        shared = [uart1_tx, uart1_tx_receiver]
     )]
     fn idle(mut ctx: idle::Context) -> ! {
         loop {
-            (&mut ctx.shared.uart1_tx, &mut ctx.shared.uart1_tx_consumer).lock(|uart, tx_queue| {
+            (&mut ctx.shared.uart1_tx, &mut ctx.shared.uart1_tx_receiver).lock(|uart, tx_queue| {
                 while let Some(&c) = tx_queue.peek() {
                     match uart.write(&[c; 1]) {
                         Ok(1) => tx_queue.dequeue().unwrap(),
@@ -236,9 +251,9 @@ mod app {
 
     #[task(
         priority = 2,
-        local = [bp35c0_j11_resetn, txs0108e_oe, uart1_tx_producer]
+        local = [bp35c0_j11_resetn, txs0108e_oe, uart1_tx_sender, uart1_rx_receiver]
     )]
-    async fn task_bp35c0_j11_setup(ctx: task_bp35c0_j11_setup::Context) {
+    async fn task_bp35c0_j11(ctx: task_bp35c0_j11::Context) {
         ctx.local.txs0108e_oe.set_high().unwrap();
         Mono::delay(500.millis()).await;
 
@@ -246,18 +261,29 @@ mod app {
 
         Mono::delay(500.millis()).await;
 
-        let mut buf = [0; 128];
-        let len =
-            bp35c0_j11::serialize_to_bytes(&bp35c0_j11::Command::GetVersionInformation, &mut buf)
-                .unwrap();
+        loop {
+            let mut buf = [0; 128];
+            let len = bp35c0_j11::serialize_to_bytes(
+                &bp35c0_j11::Command::GetVersionInformation,
+                &mut buf,
+            )
+            .unwrap();
 
-        let p = ctx.local.uart1_tx_producer;
-        if len > p.capacity() - p.len() {
-            defmt::error!("can't send: {}/{}", len, p.capacity() - p.len());
-            return;
-        }
-        for c in buf {
-            unsafe { p.enqueue_unchecked(c) }
+            let p = &mut *ctx.local.uart1_tx_sender;
+            if len > p.capacity() - p.len() {
+                defmt::error!("can't send: {}/{}", len, p.capacity() - p.len());
+                return;
+            }
+            for c in buf {
+                unsafe { p.enqueue_unchecked(c) }
+            }
+
+            if let Ok(resp) = ctx.local.uart1_rx_receiver.recv().await {
+                #[cfg(feature = "defmt")]
+                defmt::info!("Rx: {:?}", resp);
+            }
+
+            Mono::delay(1.secs()).await;
         }
     }
 
@@ -390,11 +416,11 @@ mod app {
     #[task(
         priority = 1,
         binds = UART1_IRQ,
-        shared = [uart1_tx, uart1_tx_consumer],
-        local = [uart1_rx, bp35c0_j11_parser]
+        shared = [uart1_tx, uart1_tx_receiver],
+        local = [uart1_rx, uart1_rx_sender, bp35c0_j11_parser]
     )]
     fn uart1_irq(ctx: uart1_irq::Context) {
-        (ctx.shared.uart1_tx, ctx.shared.uart1_tx_consumer).lock(|uart, tx_queue| {
+        (ctx.shared.uart1_tx, ctx.shared.uart1_tx_receiver).lock(|uart, tx_queue| {
             while let Some(&c) = tx_queue.peek() {
                 match uart.write(&[c; 1]) {
                     Ok(1) => tx_queue.dequeue().unwrap(),
@@ -406,11 +432,13 @@ mod app {
         {
             let uart = ctx.local.uart1_rx;
             let parser = ctx.local.bp35c0_j11_parser;
+            let sender = ctx.local.uart1_rx_sender;
             let mut rx_buf = [0; 32];
             if let Ok(len) = uart.read_raw(&mut rx_buf) {
                 for resp in rx_buf[0..len].iter().flat_map(|&c| parser.parse(c)) {
                     #[cfg(feature = "defmt")]
                     defmt::info!("Rx: {:?}", resp);
+                    sender.try_send(resp).unwrap();
                 }
             }
         }
