@@ -3,6 +3,7 @@ use crate::*;
 use alloc::vec::Vec;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct TerminalInformation {
     mac_address: u64,
     pan_id: u16,
@@ -10,6 +11,7 @@ pub struct TerminalInformation {
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Response {
     GetStatus {
         result: u8,
@@ -43,6 +45,7 @@ pub enum Response {
     },
     TransmitData {
         result: u8,
+        #[cfg_attr(feature = "defmt", defmt(Debug2Format))]
         result_udp: Option<(u8, Vec<u8>)>,
     },
     DoActiveScan {
@@ -51,6 +54,7 @@ pub enum Response {
 
     NotificationActiveScan {
         channel: Channel,
+        #[cfg_attr(feature = "defmt", defmt(Debug2Format))]
         terminal: Vec<TerminalInformation>,
     },
 
@@ -70,6 +74,7 @@ pub enum Response {
         source_type: u8,
         encryption: u8,
         rssi: i8,
+        #[cfg_attr(feature = "defmt", defmt(Debug2Format))]
         data: Vec<u8>,
     },
     NotificationPoweredOn,
@@ -115,6 +120,7 @@ pub enum Response {
 
     Unknown {
         code: u16,
+        #[cfg_attr(feature = "defmt", defmt(Debug2Format))]
         data: Vec<u8>,
     },
 }
@@ -280,6 +286,7 @@ fn make_response(code: u16, data: &[u8]) -> Response {
 }
 
 #[derive(Copy, Clone, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum State {
     UniqueCode(u8),
     Header {
@@ -299,6 +306,7 @@ pub enum State {
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Parser {
     buffer: [u8; 2048],
     state: State,

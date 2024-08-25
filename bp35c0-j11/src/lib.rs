@@ -6,6 +6,7 @@ use core::convert::From;
 use core::ops::{Range, RangeFrom};
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum GlobalBlockStatus {
     Inactive,
     Active,
@@ -33,6 +34,7 @@ impl From<GlobalBlockStatus> for u8 {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum RouteBBlockStatus {
     Inactive,
     Active,
@@ -63,6 +65,7 @@ impl From<RouteBBlockStatus> for u8 {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum HanBlockStatus {
     Inactive,
     Active,
@@ -93,6 +96,7 @@ impl From<HanBlockStatus> for u8 {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum OperationMode {
     HanPanCoordinator,
     HanCoordinator,
@@ -126,6 +130,7 @@ impl From<OperationMode> for u8 {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Channel {
     Ch4F922p5MHz,
     Ch5F922p9MHz,
@@ -189,6 +194,7 @@ impl From<Channel> for u8 {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum TxPower {
     P20mW,
     P10mW,
@@ -219,6 +225,7 @@ impl From<TxPower> for u8 {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ScanDuration {
     T19p28ms,
     T38p56ms,

@@ -1,6 +1,7 @@
 use crate::*;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Command<'a> {
     GetStatus,
     GetUdpPorts,

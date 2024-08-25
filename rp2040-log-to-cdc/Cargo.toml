@@ -15,6 +15,7 @@ defmt = [
   "dep:defmt",
   "dep:defmt-rtt",
   "dep:panic-probe",
+  "bp35c0-j11/defmt",
   "rp2040-hal/defmt",
 ]
 

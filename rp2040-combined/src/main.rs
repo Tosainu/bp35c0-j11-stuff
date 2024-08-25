@@ -347,7 +347,10 @@ mod app {
 
         let mut rx_buf = [0; 32];
         if let Ok(len) = uart.read_raw(&mut rx_buf) {
-            for _resp in rx_buf[0..len].iter().flat_map(|&c| parser.parse(c)) {}
+            for resp in rx_buf[0..len].iter().flat_map(|&c| parser.parse(c)) {
+                #[cfg(feature = "defmt")]
+                defmt::info!("Rx: {:?}", resp);
+            }
         }
     }
 }
