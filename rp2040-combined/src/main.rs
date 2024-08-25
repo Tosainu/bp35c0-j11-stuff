@@ -33,6 +33,7 @@ mod app {
 
     use embedded_hal::digital::{OutputPin, StatefulOutputPin};
     use embedded_hal::spi::MODE_3;
+    use embedded_hal_0_2_x::blocking::i2c::Write as I2cWrite;
     use embedded_hal_0_2_x::blocking::spi::{Transfer as SpiTransfer, Write as SpiWrite};
     use embedded_io::Write;
 
@@ -154,6 +155,7 @@ mod app {
 
         task1::spawn().unwrap();
         task2::spawn().unwrap();
+        task_lcd::spawn().unwrap();
 
         (
             Shared {},
@@ -188,6 +190,83 @@ mod app {
             ctx.local.led.toggle().unwrap();
 
             Mono::delay(100.millis()).await;
+        }
+    }
+
+    #[task(
+        priority = 1,
+        local = [i2c1, lcd_resetn]
+    )]
+    async fn task_lcd(ctx: task_lcd::Context) {
+        const LCD_ADDRESS: u8 = 0x3e;
+
+        ctx.local.lcd_resetn.set_high().unwrap();
+        Mono::delay(50.millis()).await;
+
+        let i2c = ctx.local.i2c1;
+
+        // Function Set (IS = 0)
+        i2c.write(LCD_ADDRESS, &[0b00_000000, 0b0011_1000]).unwrap();
+        Mono::delay(30.micros()).await;
+
+        // Function Set (IS = 1)
+        i2c.write(LCD_ADDRESS, &[0b00_000000, 0b0011_1001]).unwrap();
+        Mono::delay(30.micros()).await;
+
+        // Internal OSC frequency
+        i2c.write(LCD_ADDRESS, &[0b00_000000, 0b0001_0100]).unwrap();
+        Mono::delay(30.micros()).await;
+
+        // Contrast set
+        i2c.write(LCD_ADDRESS, &[0b00_000000, 0b0111_1100]).unwrap();
+        Mono::delay(30.micros()).await;
+
+        // Power/ICON control/Contrast set
+        i2c.write(LCD_ADDRESS, &[0b00_000000, 0b0101_0101]).unwrap();
+        Mono::delay(30.micros()).await;
+
+        // Follower control
+        i2c.write(LCD_ADDRESS, &[0b00_000000, 0b0110_1100]).unwrap();
+        Mono::delay(200_000.micros()).await;
+
+        // Function Set (IS = 0)
+        i2c.write(LCD_ADDRESS, &[0b00_000000, 0b0011_1000]).unwrap();
+        Mono::delay(30.micros()).await;
+
+        // Display ON/OFF
+        i2c.write(LCD_ADDRESS, &[0b00_000000, 0b0000_1100]).unwrap();
+        Mono::delay(30.micros()).await;
+
+        loop {
+            // Clear Display
+            i2c.write(LCD_ADDRESS, &[0b00_000000, 0b0000_0001]).unwrap();
+            Mono::delay(2_000.micros()).await;
+
+            i2c.write(LCD_ADDRESS, &[0b01_000000, 0b0100_1000]).unwrap(); // 'H'
+            Mono::delay(125.millis()).await;
+            i2c.write(LCD_ADDRESS, &[0b01_000000, 0b0110_0101]).unwrap(); // 'e'
+            Mono::delay(125.millis()).await;
+            i2c.write(LCD_ADDRESS, &[0b01_000000, 0b0110_1100]).unwrap(); // 'l'
+            Mono::delay(125.millis()).await;
+            i2c.write(LCD_ADDRESS, &[0b01_000000, 0b0110_1100]).unwrap(); // 'l'
+            Mono::delay(125.millis()).await;
+            i2c.write(LCD_ADDRESS, &[0b01_000000, 0b0110_1111]).unwrap(); // 'o'
+            Mono::delay(125.millis()).await;
+
+            // Set DDRAM address (
+            i2c.write(LCD_ADDRESS, &[0b00_000000, 0b1100_0011]).unwrap();
+            Mono::delay(30.micros()).await;
+
+            i2c.write(LCD_ADDRESS, &[0b01_000000, 0b0101_0111]).unwrap(); // 'W'
+            Mono::delay(125.millis()).await;
+            i2c.write(LCD_ADDRESS, &[0b01_000000, 0b0110_1111]).unwrap(); // 'o'
+            Mono::delay(125.millis()).await;
+            i2c.write(LCD_ADDRESS, &[0b01_000000, 0b0111_0010]).unwrap(); // 'r'
+            Mono::delay(125.millis()).await;
+            i2c.write(LCD_ADDRESS, &[0b01_000000, 0b0110_1100]).unwrap(); // 'l'
+            Mono::delay(125.millis()).await;
+            i2c.write(LCD_ADDRESS, &[0b01_000000, 0b0110_0100]).unwrap(); // 'd'
+            Mono::delay(750.millis()).await;
         }
     }
 }
