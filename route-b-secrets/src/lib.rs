@@ -1,6 +1,7 @@
 #![no_std]
 
 #[cfg(not(route_b_fallback_keys))]
+#[rustfmt::skip]
 mod secrets;
 
 #[cfg(route_b_fallback_keys)]
