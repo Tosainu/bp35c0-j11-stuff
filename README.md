@@ -11,6 +11,9 @@ Wi-SUN モジュール [RHOM BP35C0-J11][bp35c0-j11] で遊んだり、ついで
     - モジュールとなにかするだけなら USB-UART 直結で済みそうだけど、いい感じの小物パーツが手元になくてリセットピンとかの制御に悩んだので RP2040 経由で動かすことにした、という経緯
     - 現時点では起動後アクティブスキャンをかけてスマートメーターがいそうなチャンネルを探索、Bルート接続 & PANA 認証、スマートメーターの時刻や瞬時電力を読み出し、という動作をする  
 ![echonet](https://github.com/user-attachments/assets/b097a747-6711-4857-98f0-15640ad2191b)
+- [`rp2040-combined`](./rp2040-combined)
+    - 後述のユニバーサル基板環境で、BP35C0-J11・温度センサー・LCD・LED を同時に扱うやつ, powered by [RTIC][rtic]
+    - スマートメーターから取得した値や温度センサーの測定値を LCD に表示するやつになる予定
 - [`route-b-secrets`](./route-b-secrets)
     - Bルート認証ID やパスワードなどを雑にバイナリに埋め込むためのライブラリ
 - [`rp2040-akizuki-lcd-aqm0802`](./rp2040-akizuki-lcd-aqm0802) (BP35C0-J11 と関係なし)
@@ -240,3 +243,4 @@ Feather RP2040 と SPRESENSE-WiSUN-EVK-701 はリストから除いています�
 [rp2040-template-license]: https://github.com/rp-rs/rp2040-project-template/blob/4cfa8a7d7b2991f77d85199b9d65296d54ced071/MIT
 [rp2040-hal]: https://docs.rs/rp2040-hal/latest/rp2040_hal/
 [flip-link]: https://github.com/knurling-rs/flip-link
+[rtic]: https://rtic.rs/
