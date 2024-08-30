@@ -77,11 +77,6 @@ mod app {
 
     type LedPin = hal::gpio::Pin<hal::gpio::bank0::Gpio13, FunctionSio<SioOutput>, PullDown>;
 
-    const UART1_TX_QUEUE_DEPTH: usize = 256;
-    type Uart1TxQueue = heapless::spsc::Queue<u8, UART1_TX_QUEUE_DEPTH>;
-    type Uart1TxSender<'a> = heapless::spsc::Producer<'a, u8, UART1_TX_QUEUE_DEPTH>;
-    type Uart1TxReceiver<'a> = heapless::spsc::Consumer<'a, u8, UART1_TX_QUEUE_DEPTH>;
-
     const UART1_RX_QUEUE_DEPTH: usize = 4;
     type Uart1RxQueue = rtic_sync::channel::Channel<bp35c0_j11::Response, UART1_RX_QUEUE_DEPTH>;
     type Uart1RxSender<'a> =
@@ -90,18 +85,15 @@ mod app {
         rtic_sync::channel::Receiver<'a, bp35c0_j11::Response, UART1_RX_QUEUE_DEPTH>;
 
     #[shared]
-    struct Shared {
-        uart1_tx: hal::uart::Writer<hal::pac::UART1, Uart1Pins>,
-        uart1_tx_receiver: Uart1TxReceiver<'static>,
-    }
+    struct Shared {}
 
     #[local]
     struct Local {
         uart0: UartPeripheral<hal::uart::Enabled, hal::pac::UART0, Uart0Pins>,
-        uart1_tx_sender: Uart1TxSender<'static>,
         uart1_rx: hal::uart::Reader<hal::pac::UART1, Uart1Pins>,
-        uart1_rx_sender: Uart1RxSender<'static>,
         uart1_rx_receiver: Uart1RxReceiver<'static>,
+        uart1_rx_sender: Uart1RxSender<'static>,
+        uart1_tx: hal::uart::Writer<hal::pac::UART1, Uart1Pins>,
         i2c1: I2C<hal::pac::I2C1, I2c1Pins>,
         spi0: Spi<hal::spi::Enabled, hal::pac::SPI0, Spi0Pins>,
         spi0_csn_adt7310: Spi0CsnAdt7310Pin,
@@ -114,7 +106,6 @@ mod app {
 
     #[init(
         local = [
-            uart1_tx_queue: Uart1TxQueue = Uart1TxQueue::new(),
             uart1_rx_queue: Uart1RxQueue = Uart1RxQueue::new(),
         ]
     )]
@@ -162,7 +153,6 @@ mod app {
                 clocks.peripheral_clock.freq(),
             )
             .unwrap();
-        uart1.enable_tx_interrupt();
         uart1.enable_rx_interrupt();
 
         let i2c1 = I2C::i2c1(
@@ -193,7 +183,6 @@ mod app {
         let led = pins.d13.into_push_pull_output_in_state(PinState::High);
 
         let (uart1_rx, uart1_tx) = uart1.split();
-        let (uart1_tx_sender, uart1_tx_receiver) = ctx.local.uart1_tx_queue.split();
         let (uart1_rx_sender, uart1_rx_receiver) = ctx.local.uart1_rx_queue.split();
 
         Mono::start(ctx.device.TIMER, &resets);
@@ -204,16 +193,13 @@ mod app {
         task_led_blink::spawn().unwrap();
 
         (
-            Shared {
-                uart1_tx,
-                uart1_tx_receiver,
-            },
+            Shared {},
             Local {
                 uart0,
-                uart1_tx_sender,
                 uart1_rx,
-                uart1_rx_sender,
                 uart1_rx_receiver,
+                uart1_rx_sender,
+                uart1_tx,
                 i2c1,
                 spi0,
                 spi0_csn_adt7310,
@@ -226,23 +212,7 @@ mod app {
         )
     }
 
-    #[idle(
-        shared = [uart1_tx, uart1_tx_receiver]
-    )]
-    fn idle(mut ctx: idle::Context) -> ! {
-        loop {
-            (&mut ctx.shared.uart1_tx, &mut ctx.shared.uart1_tx_receiver).lock(|uart, tx_queue| {
-                while let Some(&c) = tx_queue.peek() {
-                    match uart.write(&[c; 1]) {
-                        Ok(1) => tx_queue.dequeue().unwrap(),
-                        _ => break,
-                    };
-                }
-            });
-        }
-    }
-
-    #[task(priority = 2, local = [led])]
+    #[task(priority = 1, local = [led])]
     async fn task_led_blink(ctx: task_led_blink::Context) {
         loop {
             ctx.local.led.toggle().unwrap();
@@ -252,8 +222,8 @@ mod app {
     }
 
     #[task(
-        priority = 2,
-        local = [bp35c0_j11_resetn, txs0108e_oe, uart1_tx_sender, uart1_rx_receiver]
+        priority = 1,
+        local = [bp35c0_j11_resetn, txs0108e_oe, uart1_rx_receiver, uart1_tx]
     )]
     async fn task_bp35c0_j11(ctx: task_bp35c0_j11::Context) {
         use bp35c0_j11::*;
@@ -265,37 +235,28 @@ mod app {
 
         Mono::delay(500.millis()).await;
 
-        fn send(queue: &mut Uart1TxSender, cmd: bp35c0_j11::Command) {
+        fn send<W: Write>(uart: &mut W, cmd: bp35c0_j11::Command) -> Result<(), W::Error> {
             #[cfg(feature = "defmt")]
             defmt::info!("Tx: {:?}", cmd);
 
             let mut buf = [0; 128];
             let len = bp35c0_j11::serialize_to_bytes(&cmd, &mut buf).unwrap();
-
-            if len > queue.capacity() - queue.len() {
-                #[cfg(feature = "defmt")]
-                defmt::error!("can't send: {}/{}", len, queue.capacity() - queue.len());
-                return;
-            }
-
-            for c in buf {
-                unsafe { queue.enqueue_unchecked(c) }
-            }
+            uart.write_all(&buf[..len])
         }
 
-        let sender = ctx.local.uart1_tx_sender;
-        let receiver = ctx.local.uart1_rx_receiver;
+        let rx = ctx.local.uart1_rx_receiver;
+        let tx = ctx.local.uart1_tx;
 
         loop {
             'retry: loop {
-                if let Ok(Response::NotificationPoweredOn) = receiver.recv().await {
+                if let Ok(Response::NotificationPoweredOn) = rx.recv().await {
                     break 'retry;
                 }
             }
 
             'retry: loop {
-                send(sender, Command::GetVersionInformation);
-                match receiver.recv().await {
+                send(tx, Command::GetVersionInformation).unwrap();
+                match rx.recv().await {
                     Ok(Response::GetVersionInformation { result: 0x01, .. }) => break 'retry,
                     _ => Mono::delay(1.secs()).await,
                 }
@@ -303,15 +264,16 @@ mod app {
 
             'retry: loop {
                 send(
-                    sender,
+                    tx,
                     Command::SetOperationMode {
                         mode: OperationMode::Dual,
                         han_sleep: false,
                         channel: Channel::Ch4F922p5MHz,
                         tx_power: TxPower::P20mW,
                     },
-                );
-                match receiver.recv().await {
+                )
+                .unwrap();
+                match rx.recv().await {
                     Ok(Response::SetOperationMode { result: 0x01 }) => break 'retry,
                     _ => Mono::delay(1.secs()).await,
                 }
@@ -319,7 +281,7 @@ mod app {
 
             let scan_result = 'retry: loop {
                 send(
-                    sender,
+                    tx,
                     Command::DoActiveScan {
                         duration: ScanDuration::T616p96ms,
                         mask_channels: 0x3fff0,
@@ -327,9 +289,10 @@ mod app {
                             ROUTE_B_ID[24..32].try_into().unwrap(),
                         )),
                     },
-                );
+                )
+                .unwrap();
                 let mut scan_result = None;
-                while let Ok(resp) = receiver.recv().await {
+                while let Ok(resp) = rx.recv().await {
                     match resp {
                         Response::DoActiveScan { result: 0x01 } => match scan_result {
                             Some(channel) => break 'retry channel,
@@ -350,15 +313,16 @@ mod app {
 
             'retry: loop {
                 send(
-                    sender,
+                    tx,
                     Command::SetOperationMode {
                         mode: OperationMode::Dual,
                         han_sleep: false,
                         channel: scan_result,
                         tx_power: TxPower::P20mW,
                     },
-                );
-                match receiver.recv().await {
+                )
+                .unwrap();
+                match rx.recv().await {
                     Ok(Response::SetOperationMode { result: 0x01 }) => break 'retry,
                     _ => Mono::delay(1.secs()).await,
                 }
@@ -366,13 +330,14 @@ mod app {
 
             'retry: loop {
                 send(
-                    sender,
+                    tx,
                     Command::SetRouteBPanaAuthenticationInformation {
                         id: ROUTE_B_ID,
                         password: ROUTE_B_PASSWORD,
                     },
-                );
-                match receiver.recv().await {
+                )
+                .unwrap();
+                match rx.recv().await {
                     Ok(Response::SetRouteBPanaAuthenticationInformation { result: 0x01 }) => {
                         break 'retry
                     }
@@ -381,24 +346,24 @@ mod app {
             }
 
             'retry: loop {
-                send(sender, Command::StartRouteBOperation);
-                match receiver.recv().await {
+                send(tx, Command::StartRouteBOperation).unwrap();
+                match rx.recv().await {
                     Ok(Response::StartRouteBOperation { result: 0x01, .. }) => break 'retry,
                     _ => Mono::delay(1.secs()).await,
                 }
             }
 
             'retry: loop {
-                send(sender, Command::OpenUdpPort(0x0e1a));
-                match receiver.recv().await {
+                send(tx, Command::OpenUdpPort(0x0e1a)).unwrap();
+                match rx.recv().await {
                     Ok(Response::OpenUdpPort { result: 0x01, .. }) => break 'retry,
                     _ => Mono::delay(1.secs()).await,
                 }
             }
 
             let mac_address = 'retry: loop {
-                send(sender, Command::StartRouteBPana);
-                while let Ok(resp) = receiver.recv().await {
+                send(tx, Command::StartRouteBPana).unwrap();
+                while let Ok(resp) = rx.recv().await {
                     match resp {
                         Response::StartRouteBPana { result: 0x01, .. } => (),
                         Response::NotificationPanaAuthentication {
@@ -420,7 +385,7 @@ mod app {
                 let tid_be = ((tid & 0xffff) as u16).to_be_bytes();
                 'retry: loop {
                     send(
-                        sender,
+                        tx,
                         Command::TransmitData {
                             destination_address,
                             source_port: 0x0e1a,
@@ -443,8 +408,9 @@ mod app {
                                 0x00, // PDC
                             ],
                         },
-                    );
-                    match receiver.recv().await {
+                    )
+                    .unwrap();
+                    match rx.recv().await {
                         Ok(Response::TransmitData { result: 0x01, .. }) => break 'retry,
                         _ => Mono::delay(1.secs()).await,
                     }
@@ -457,7 +423,7 @@ mod app {
                     0x02, 0x88, 0x01, // DEOJ
                     0x05, 0xff, 0x01, // SEOJ
                 ];
-                while let Ok(resp) = receiver.recv().await {
+                while let Ok(resp) = rx.recv().await {
                     match resp {
                         Response::NotificationUdpReceived {
                             source_port: 0x0e1a,
@@ -475,7 +441,7 @@ mod app {
     }
 
     #[task(
-        priority = 2,
+        priority = 1,
         local = [spi0, spi0_csn_adt7310, uart0]
     )]
     async fn task_adt7310(ctx: task_adt7310::Context) {
@@ -524,7 +490,7 @@ mod app {
     }
 
     #[task(
-        priority = 2,
+        priority = 1,
         local = [i2c1, lcd_resetn]
     )]
     async fn task_lcd(ctx: task_lcd::Context) {
@@ -603,30 +569,18 @@ mod app {
     #[task(
         priority = 1,
         binds = UART1_IRQ,
-        shared = [uart1_tx, uart1_tx_receiver],
         local = [uart1_rx, uart1_rx_sender, bp35c0_j11_parser]
     )]
     fn uart1_irq(ctx: uart1_irq::Context) {
-        (ctx.shared.uart1_tx, ctx.shared.uart1_tx_receiver).lock(|uart, tx_queue| {
-            while let Some(&c) = tx_queue.peek() {
-                match uart.write(&[c; 1]) {
-                    Ok(1) => tx_queue.dequeue().unwrap(),
-                    _ => break,
-                };
-            }
-        });
-
-        {
-            let uart = ctx.local.uart1_rx;
-            let parser = ctx.local.bp35c0_j11_parser;
-            let sender = ctx.local.uart1_rx_sender;
-            let mut rx_buf = [0; 32];
-            if let Ok(len) = uart.read_raw(&mut rx_buf) {
-                for resp in rx_buf[0..len].iter().flat_map(|&c| parser.parse(c)) {
-                    #[cfg(feature = "defmt")]
-                    defmt::info!("Rx: {:?}", resp);
-                    sender.try_send(resp).unwrap();
-                }
+        let uart = ctx.local.uart1_rx;
+        let parser = ctx.local.bp35c0_j11_parser;
+        let sender = ctx.local.uart1_rx_sender;
+        let mut rx_buf = [0; 32];
+        if let Ok(len) = uart.read_raw(&mut rx_buf) {
+            for resp in rx_buf[0..len].iter().flat_map(|&c| parser.parse(c)) {
+                #[cfg(feature = "defmt")]
+                defmt::info!("Rx: {:?}", resp);
+                sender.try_send(resp).unwrap();
             }
         }
     }
