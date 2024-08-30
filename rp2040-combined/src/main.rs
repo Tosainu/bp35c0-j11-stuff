@@ -363,14 +363,20 @@ mod app {
 
             let mac_address = 'retry: loop {
                 send(tx, Command::StartRouteBPana).unwrap();
-                while let Ok(resp) = rx.recv().await {
+                'wait: while let Ok(resp) = rx.recv().await {
                     match resp {
-                        Response::StartRouteBPana { result: 0x01, .. } => (),
+                        Response::StartRouteBPana { result, .. } if result != 0x01 => break 'wait,
                         Response::NotificationPanaAuthentication {
-                            result: 0x01,
+                            result,
                             mac_address,
-                        } => break 'retry mac_address,
-                        _ => continue 'retry,
+                        } => {
+                            if result == 0x01 {
+                                break 'retry mac_address;
+                            } else {
+                                break 'wait;
+                            }
+                        }
+                        _ => (),
                     };
                 }
             };
@@ -410,9 +416,14 @@ mod app {
                         },
                     )
                     .unwrap();
-                    match rx.recv().await {
-                        Ok(Response::TransmitData { result: 0x01, .. }) => break 'retry,
-                        _ => Mono::delay(1.secs()).await,
+                    'wait: while let Ok(resp) = rx.recv().await {
+                        if let Response::TransmitData { result, .. } = resp {
+                            if result == 0x01 {
+                                break 'retry;
+                            } else {
+                                break 'wait;
+                            }
+                        }
                     }
                 }
 
@@ -423,14 +434,14 @@ mod app {
                     0x02, 0x88, 0x01, // DEOJ
                     0x05, 0xff, 0x01, // SEOJ
                 ];
-                while let Ok(resp) = rx.recv().await {
+                'wait: while let Ok(resp) = rx.recv().await {
                     match resp {
                         Response::NotificationUdpReceived {
                             source_port: 0x0e1a,
                             destination_port: 0x0e1a,
                             data,
                             ..
-                        } if data.starts_with(&data_expected) => break,
+                        } if data.starts_with(&data_expected) => break 'wait,
                         _ => (),
                     };
                 }
