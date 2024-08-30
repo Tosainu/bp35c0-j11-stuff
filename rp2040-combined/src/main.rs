@@ -84,6 +84,19 @@ mod app {
     type Uart1RxReceiver<'a> =
         rtic_sync::channel::Receiver<'a, bp35c0_j11::Response, UART1_RX_QUEUE_DEPTH>;
 
+    struct Bp35c0J11Writer<W: Write>(W);
+
+    impl<W: Write> Bp35c0J11Writer<W> {
+        fn send(&mut self, cmd: bp35c0_j11::Command) -> Result<(), W::Error> {
+            #[cfg(feature = "defmt")]
+            defmt::info!("Tx: {:?}", cmd);
+
+            let mut buf = [0; 128];
+            let len = bp35c0_j11::serialize_to_bytes(&cmd, &mut buf).unwrap();
+            self.0.write_all(&buf[..len])
+        }
+    }
+
     #[shared]
     struct Shared {}
 
@@ -93,7 +106,7 @@ mod app {
         uart1_rx: hal::uart::Reader<hal::pac::UART1, Uart1Pins>,
         uart1_rx_receiver: Uart1RxReceiver<'static>,
         uart1_rx_sender: Uart1RxSender<'static>,
-        uart1_tx: hal::uart::Writer<hal::pac::UART1, Uart1Pins>,
+        uart1_tx: Bp35c0J11Writer<hal::uart::Writer<hal::pac::UART1, Uart1Pins>>,
         i2c1: I2C<hal::pac::I2C1, I2c1Pins>,
         spi0: Spi<hal::spi::Enabled, hal::pac::SPI0, Spi0Pins>,
         spi0_csn_adt7310: Spi0CsnAdt7310Pin,
@@ -199,7 +212,7 @@ mod app {
                 uart1_rx,
                 uart1_rx_receiver,
                 uart1_rx_sender,
-                uart1_tx,
+                uart1_tx: Bp35c0J11Writer(uart1_tx),
                 i2c1,
                 spi0,
                 spi0_csn_adt7310,
@@ -235,15 +248,6 @@ mod app {
 
         Mono::delay(500.millis()).await;
 
-        fn send<W: Write>(uart: &mut W, cmd: bp35c0_j11::Command) -> Result<(), W::Error> {
-            #[cfg(feature = "defmt")]
-            defmt::info!("Tx: {:?}", cmd);
-
-            let mut buf = [0; 128];
-            let len = bp35c0_j11::serialize_to_bytes(&cmd, &mut buf).unwrap();
-            uart.write_all(&buf[..len])
-        }
-
         let rx = ctx.local.uart1_rx_receiver;
         let tx = ctx.local.uart1_tx;
 
@@ -255,7 +259,7 @@ mod app {
             }
 
             'retry: loop {
-                send(tx, Command::GetVersionInformation).unwrap();
+                tx.send(Command::GetVersionInformation).unwrap();
                 match rx.recv().await {
                     Ok(Response::GetVersionInformation { result: 0x01, .. }) => break 'retry,
                     _ => Mono::delay(1.secs()).await,
@@ -263,15 +267,12 @@ mod app {
             }
 
             'retry: loop {
-                send(
-                    tx,
-                    Command::SetOperationMode {
-                        mode: OperationMode::Dual,
-                        han_sleep: false,
-                        channel: Channel::Ch4F922p5MHz,
-                        tx_power: TxPower::P20mW,
-                    },
-                )
+                tx.send(Command::SetOperationMode {
+                    mode: OperationMode::Dual,
+                    han_sleep: false,
+                    channel: Channel::Ch4F922p5MHz,
+                    tx_power: TxPower::P20mW,
+                })
                 .unwrap();
                 match rx.recv().await {
                     Ok(Response::SetOperationMode { result: 0x01 }) => break 'retry,
@@ -280,16 +281,11 @@ mod app {
             }
 
             let scan_result = 'retry: loop {
-                send(
-                    tx,
-                    Command::DoActiveScan {
-                        duration: ScanDuration::T616p96ms,
-                        mask_channels: 0x3fff0,
-                        pairing_id: Some(u64::from_be_bytes(
-                            ROUTE_B_ID[24..32].try_into().unwrap(),
-                        )),
-                    },
-                )
+                tx.send(Command::DoActiveScan {
+                    duration: ScanDuration::T616p96ms,
+                    mask_channels: 0x3fff0,
+                    pairing_id: Some(u64::from_be_bytes(ROUTE_B_ID[24..32].try_into().unwrap())),
+                })
                 .unwrap();
                 let mut scan_result = None;
                 while let Ok(resp) = rx.recv().await {
@@ -312,15 +308,12 @@ mod app {
             defmt::info!("scan_result = {}", scan_result);
 
             'retry: loop {
-                send(
-                    tx,
-                    Command::SetOperationMode {
-                        mode: OperationMode::Dual,
-                        han_sleep: false,
-                        channel: scan_result,
-                        tx_power: TxPower::P20mW,
-                    },
-                )
+                tx.send(Command::SetOperationMode {
+                    mode: OperationMode::Dual,
+                    han_sleep: false,
+                    channel: scan_result,
+                    tx_power: TxPower::P20mW,
+                })
                 .unwrap();
                 match rx.recv().await {
                     Ok(Response::SetOperationMode { result: 0x01 }) => break 'retry,
@@ -329,13 +322,10 @@ mod app {
             }
 
             'retry: loop {
-                send(
-                    tx,
-                    Command::SetRouteBPanaAuthenticationInformation {
-                        id: ROUTE_B_ID,
-                        password: ROUTE_B_PASSWORD,
-                    },
-                )
+                tx.send(Command::SetRouteBPanaAuthenticationInformation {
+                    id: ROUTE_B_ID,
+                    password: ROUTE_B_PASSWORD,
+                })
                 .unwrap();
                 match rx.recv().await {
                     Ok(Response::SetRouteBPanaAuthenticationInformation { result: 0x01 }) => {
@@ -346,7 +336,7 @@ mod app {
             }
 
             'retry: loop {
-                send(tx, Command::StartRouteBOperation).unwrap();
+                tx.send(Command::StartRouteBOperation).unwrap();
                 match rx.recv().await {
                     Ok(Response::StartRouteBOperation { result: 0x01, .. }) => break 'retry,
                     _ => Mono::delay(1.secs()).await,
@@ -354,7 +344,7 @@ mod app {
             }
 
             'retry: loop {
-                send(tx, Command::OpenUdpPort(0x0e1a)).unwrap();
+                tx.send(Command::OpenUdpPort(0x0e1a)).unwrap();
                 match rx.recv().await {
                     Ok(Response::OpenUdpPort { result: 0x01, .. }) => break 'retry,
                     _ => Mono::delay(1.secs()).await,
@@ -362,7 +352,7 @@ mod app {
             }
 
             let mac_address = 'retry: loop {
-                send(tx, Command::StartRouteBPana).unwrap();
+                tx.send(Command::StartRouteBPana).unwrap();
                 'wait: while let Ok(resp) = rx.recv().await {
                     match resp {
                         Response::StartRouteBPana { result, .. } if result != 0x01 => break 'wait,
@@ -390,31 +380,28 @@ mod app {
             for tid in 0.. {
                 let tid_be = ((tid & 0xffff) as u16).to_be_bytes();
                 'retry: loop {
-                    send(
-                        tx,
-                        Command::TransmitData {
-                            destination_address,
-                            source_port: 0x0e1a,
-                            destination_port: 0x0e1a,
-                            data: &[
-                                0x10, // EHD1
-                                0x81, // EHD2
-                                tid_be[0], tid_be[1], // TID
-                                0x05, 0xff, 0x01, // SEOJ
-                                0x02, 0x88, 0x01, // DEOJ
-                                0x62, // ESV
-                                0x04, // OPC
-                                0x97, // EPC (現在時刻設定)
-                                0x00, // PDC
-                                0x98, // EPC (現在年月日設定)
-                                0x00, // PDC
-                                0xd3, // EPC (電力係数)
-                                0x00, // PDC
-                                0xe7, // EPC (瞬時電力計測値)
-                                0x00, // PDC
-                            ],
-                        },
-                    )
+                    tx.send(Command::TransmitData {
+                        destination_address,
+                        source_port: 0x0e1a,
+                        destination_port: 0x0e1a,
+                        data: &[
+                            0x10, // EHD1
+                            0x81, // EHD2
+                            tid_be[0], tid_be[1], // TID
+                            0x05, 0xff, 0x01, // SEOJ
+                            0x02, 0x88, 0x01, // DEOJ
+                            0x62, // ESV
+                            0x04, // OPC
+                            0x97, // EPC (現在時刻設定)
+                            0x00, // PDC
+                            0x98, // EPC (現在年月日設定)
+                            0x00, // PDC
+                            0xd3, // EPC (電力係数)
+                            0x00, // PDC
+                            0xe7, // EPC (瞬時電力計測値)
+                            0x00, // PDC
+                        ],
+                    })
                     .unwrap();
                     'wait: while let Ok(resp) = rx.recv().await {
                         if let Response::TransmitData { result, .. } = resp {
