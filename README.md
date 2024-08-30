@@ -57,7 +57,7 @@ pub const ROUTE_B_PASSWORD: &[u8; 12] = b"xxxxxxxxxxxx";
 
 [^evk-701-note]: もちろんメーカーの想定した使い方ではなく、この使い方を推奨するものではありません。自己責任でおおねがいします。
 
-![](https://github.com/user-attachments/assets/373401e0-0ac9-459d-88a2-cf884d201006)
+![](https://github.com/user-attachments/assets/3ff3fc66-8628-43fa-8eb6-40a29a6d78e7)
 
 ### 接続
 
@@ -89,7 +89,7 @@ Raspberry Pi Pico 向けにビルドした場合の接続は次を想定して�
 
 変更したプログラムを RP2040 で動かすために毎回 USB ケーブルつなぎなおしてるのが面倒になったのと、流行りの [probe-rs][probe-rs] にあこがれて、[このとき][bus-blaster-blog]買っていた JTAG デバッガー [Bus Blaster v3](http://dangerousprototypes.com/docs/Bus_Blaster_v3_design_overview) を出してきました。
 
-![](https://github.com/user-attachments/assets/97ed3ea5-6ab5-46a6-8e4d-32c995282985)
+![](https://github.com/user-attachments/assets/aa832da3-76ea-4653-9b11-149714900ae2)
 
 Bus Blaster v3 を KT-link 互換にするたんめ、[このリポジトリ][bus-blaster-ktlink]の `system.svf` を CPLD に書き込みました。Feather RP2040 の裏面パッドからひっぱってきた SWD のポートと接続するとあっさり OpenOCD で認識。GDB でロードやデバッグ、などもできました。
 
@@ -142,7 +142,7 @@ runner = [
 
 ユニバーサル基板実装に実装しました。ついでに眠らせていた LCD と温度センサーを空いたスペースに実装しました。
 
-![DSC_3020-Edit](https://github.com/user-attachments/assets/86eeea2a-759b-4d7c-aec3-c6f8b27b8ed1)
+![](https://github.com/user-attachments/assets/bb64dba9-b368-4412-8f44-eadae42ebf89)
 
 ### パーツリスト
 
