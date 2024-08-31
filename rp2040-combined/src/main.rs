@@ -25,6 +25,7 @@ static ALLOCATOR: Heap = Heap::empty();
 mod app {
     use crate::bsp;
 
+    use core::fmt::Write;
     use core::mem::MaybeUninit;
 
     use bsp::{hal, XOSC_CRYSTAL_FREQ};
@@ -40,9 +41,7 @@ mod app {
 
     use embedded_hal::digital::{OutputPin, StatefulOutputPin};
     use embedded_hal::spi::MODE_3 as SPI_MODE_3;
-    use embedded_hal_0_2_x::blocking::i2c::Write as I2cWrite;
     use embedded_hal_0_2_x::blocking::spi::{Transfer as SpiTransfer, Write as SpiWrite};
-    use embedded_io::Write;
 
     use rtic_monotonics::rp2040::prelude::*;
     rp2040_timer_monotonic!(Mono);
@@ -84,9 +83,9 @@ mod app {
     type Uart1RxReceiver<'a> =
         rtic_sync::channel::Receiver<'a, bp35c0_j11::Response, UART1_RX_QUEUE_DEPTH>;
 
-    struct Bp35c0J11Writer<W: Write>(W);
+    struct Bp35c0J11Writer<W: embedded_io::Write>(W);
 
-    impl<W: Write> Bp35c0J11Writer<W> {
+    impl<W: embedded_io::Write> Bp35c0J11Writer<W> {
         fn send(&mut self, cmd: bp35c0_j11::Command) -> Result<(), W::Error> {
             #[cfg(feature = "defmt")]
             defmt::info!("Tx: {:?}", cmd);
@@ -498,69 +497,119 @@ mod app {
         Mono::delay(50.millis()).await;
 
         let i2c = ctx.local.i2c1;
+        let lcd = st7032i::St7032i::<_, _, _>::new(i2c, LCD_ADDRESS);
 
-        // Function Set (IS = 0)
-        i2c.write(LCD_ADDRESS, &[0b00_000000, 0b0011_1000]).unwrap();
-        Mono::delay(30.micros()).await;
+        let (lcd, delay) = lcd.set_instruction_set::<st7032i::Normal>().unwrap();
+        Mono::delay(delay.convert().into()).await;
 
-        // Function Set (IS = 1)
-        i2c.write(LCD_ADDRESS, &[0b00_000000, 0b0011_1001]).unwrap();
-        Mono::delay(30.micros()).await;
+        let (mut lcd, delay) = lcd.set_instruction_set::<st7032i::Extention>().unwrap();
+        Mono::delay(delay.convert().into()).await;
 
-        // Internal OSC frequency
-        i2c.write(LCD_ADDRESS, &[0b00_000000, 0b0001_0100]).unwrap();
-        Mono::delay(30.micros()).await;
+        let delay = lcd.cmd_internal_osc_frequency().unwrap();
+        Mono::delay(delay.convert().into()).await;
 
-        // Contrast set
-        i2c.write(LCD_ADDRESS, &[0b00_000000, 0b0111_1100]).unwrap();
-        Mono::delay(30.micros()).await;
+        let delay = lcd.cmd_contrast_set(0b1100).unwrap();
+        Mono::delay(delay.convert().into()).await;
 
-        // Power/ICON control/Contrast set
-        i2c.write(LCD_ADDRESS, &[0b00_000000, 0b0101_0101]).unwrap();
-        Mono::delay(30.micros()).await;
+        let delay = lcd.cmd_power_icon_contrast_set(false, true, 0b01).unwrap();
+        Mono::delay(delay.convert().into()).await;
 
-        // Follower control
-        i2c.write(LCD_ADDRESS, &[0b00_000000, 0b0110_1100]).unwrap();
-        Mono::delay(200_000.micros()).await;
+        let delay = lcd.cmd_follower_control(true, 0b100).unwrap();
+        Mono::delay(delay.convert().into()).await;
 
-        // Function Set (IS = 0)
-        i2c.write(LCD_ADDRESS, &[0b00_000000, 0b0011_1000]).unwrap();
-        Mono::delay(30.micros()).await;
+        let (mut lcd, delay) = lcd.set_instruction_set::<st7032i::Normal>().unwrap();
+        Mono::delay(delay.convert().into()).await;
 
-        // Display ON/OFF
-        i2c.write(LCD_ADDRESS, &[0b00_000000, 0b0000_1100]).unwrap();
-        Mono::delay(30.micros()).await;
+        let delay = lcd.cmd_display_on_off(true, false, false).unwrap();
+        Mono::delay(delay.convert().into()).await;
+
+        let delay = lcd.cmd_set_cgram_address(0).unwrap();
+        Mono::delay(delay.convert().into()).await;
+
+        let delay = lcd
+            .cmd_write_bytes([
+                // CGRAM[0]
+                0b000_00000,
+                0b000_00100,
+                0b000_00100,
+                0b000_00100,
+                0b000_00100,
+                0b000_00100,
+                0b000_00000,
+                0b000_00000,
+                // CGRAM[1]
+                0b000_00000,
+                0b000_00000,
+                0b000_00000,
+                0b000_00000,
+                0b000_00000,
+                0b000_10001,
+                0b000_01110,
+                0b000_00000,
+            ])
+            .unwrap();
+        Mono::delay(delay.convert().into()).await;
+
+        let delay = lcd.cmd_clear_display().unwrap();
+        Mono::delay(delay.convert().into()).await;
+
+        // 起動メッセージ
+        {
+            write!(lcd, " Hello!").unwrap();
+            Mono::delay(st7032i::EXECUTION_TIME_SHORT.convert().into()).await;
+
+            let delay = lcd
+                .cmd_set_ddram_address(st7032i::DDRAM_ADDRESS_LINE2)
+                .unwrap();
+            Mono::delay(delay.convert().into()).await;
+
+            let _ = lcd
+                .cmd_write_chars([
+                    '('.into(),
+                    '*'.into(),
+                    st7032i::Character::Cgram(0),
+                    st7032i::Character::Cgram(1),
+                    st7032i::Character::Cgram(0),
+                    ')'.into(),
+                    'ﾉ'.into(),
+                ])
+                .unwrap();
+            Mono::delay(3.secs()).await;
+        }
 
         loop {
-            // Clear Display
-            i2c.write(LCD_ADDRESS, &[0b00_000000, 0b0000_0001]).unwrap();
-            Mono::delay(2_000.micros()).await;
+            let delay = lcd.cmd_clear_display().unwrap();
+            Mono::delay(delay.convert().into()).await;
 
-            i2c.write(LCD_ADDRESS, &[0b01_000000, 0b0100_1000]).unwrap(); // 'H'
+            let now = Mono::now();
+
+            let _ = lcd.cmd_write_chars(['H'.into()]).unwrap();
             Mono::delay(125.millis()).await;
-            i2c.write(LCD_ADDRESS, &[0b01_000000, 0b0110_0101]).unwrap(); // 'e'
+            let _ = lcd.cmd_write_chars(['e'.into()]).unwrap();
             Mono::delay(125.millis()).await;
-            i2c.write(LCD_ADDRESS, &[0b01_000000, 0b0110_1100]).unwrap(); // 'l'
+            let _ = lcd.cmd_write_chars(['l'.into()]).unwrap();
             Mono::delay(125.millis()).await;
-            i2c.write(LCD_ADDRESS, &[0b01_000000, 0b0110_1100]).unwrap(); // 'l'
+            let _ = lcd.cmd_write_chars(['l'.into()]).unwrap();
             Mono::delay(125.millis()).await;
-            i2c.write(LCD_ADDRESS, &[0b01_000000, 0b0110_1111]).unwrap(); // 'o'
+            let _ = lcd.cmd_write_chars(['o'.into()]).unwrap();
             Mono::delay(125.millis()).await;
 
-            // Set DDRAM address (
-            i2c.write(LCD_ADDRESS, &[0b00_000000, 0b1100_0011]).unwrap();
-            Mono::delay(30.micros()).await;
+            let delay = lcd
+                .cmd_set_ddram_address(st7032i::DDRAM_ADDRESS_LINE2 + 3)
+                .unwrap();
+            Mono::delay(delay.convert().into()).await;
 
-            i2c.write(LCD_ADDRESS, &[0b01_000000, 0b0101_0111]).unwrap(); // 'W'
+            let _ = lcd.cmd_write_chars(['W'.into()]).unwrap();
             Mono::delay(125.millis()).await;
-            i2c.write(LCD_ADDRESS, &[0b01_000000, 0b0110_1111]).unwrap(); // 'o'
+            let _ = lcd.cmd_write_chars(['o'.into()]).unwrap();
             Mono::delay(125.millis()).await;
-            i2c.write(LCD_ADDRESS, &[0b01_000000, 0b0111_0010]).unwrap(); // 'r'
+            let _ = lcd.cmd_write_chars(['r'.into()]).unwrap();
             Mono::delay(125.millis()).await;
-            i2c.write(LCD_ADDRESS, &[0b01_000000, 0b0110_1100]).unwrap(); // 'l'
+            let _ = lcd.cmd_write_chars(['l'.into()]).unwrap();
             Mono::delay(125.millis()).await;
-            i2c.write(LCD_ADDRESS, &[0b01_000000, 0b0110_0100]).unwrap(); // 'd'
-            Mono::delay(750.millis()).await;
+            let _ = lcd.cmd_write_chars(['d'.into()]).unwrap();
+
+            Mono::delay_until(now + 3.secs()).await;
         }
     }
 

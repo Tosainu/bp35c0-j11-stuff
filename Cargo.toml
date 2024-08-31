@@ -7,6 +7,7 @@ members = [
   "rp2040-adt7310",
   "rp2040-combined",
   "route-b-secrets",
+  "st7032i",
 ]
 
 # cargo build/run

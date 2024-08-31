@@ -1,0 +1,12 @@
+[package]
+name = "st7032i"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies.embedded_hal_0_2_x]
+package = "embedded-hal"
+version = "0.2.7"
+features = ["unproven"]
+
+[dependencies.fugit]
+version = "0.3.7"
