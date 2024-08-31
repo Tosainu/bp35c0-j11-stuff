@@ -97,7 +97,9 @@ mod app {
     }
 
     #[shared]
-    struct Shared {}
+    struct Shared {
+        temperature_raw: i16,
+    }
 
     #[local]
     struct Local {
@@ -205,7 +207,7 @@ mod app {
         task_led_blink::spawn().unwrap();
 
         (
-            Shared {},
+            Shared { temperature_raw: 0 },
             Local {
                 uart0,
                 uart1_rx,
@@ -439,12 +441,12 @@ mod app {
 
     #[task(
         priority = 1,
-        local = [spi0, spi0_csn_adt7310, uart0]
+        shared = [temperature_raw],
+        local = [spi0, spi0_csn_adt7310]
     )]
     async fn task_adt7310(ctx: task_adt7310::Context) {
         let spi = ctx.local.spi0;
         let spi_csn = ctx.local.spi0_csn_adt7310;
-        let uart = ctx.local.uart0;
 
         {
             spi_csn.set_low().unwrap();
@@ -453,7 +455,11 @@ mod app {
             Mono::delay(1.millis()).await;
         }
 
+        let mut temperature_raw = ctx.shared.temperature_raw;
+
         loop {
+            let now = Mono::now();
+
             spi_csn.set_low().unwrap();
 
             #[allow(clippy::unusual_byte_groupings)]
@@ -470,25 +476,18 @@ mod app {
 
             spi.transfer(buf.as_mut_slice()).unwrap();
 
-            let temp = i16::from_be_bytes([buf[1], buf[2]]);
-            let temp_int = temp / 128;
-            let temp_frac = 78125_u32 * (temp % 128).unsigned_abs() as u32;
-            write!(
-                uart,
-                "\r\ntemp = {:3}.{:07} ({:#06x})",
-                temp_int, temp_frac, temp
-            )
-            .unwrap();
-
             spi_csn.set_high().unwrap();
 
-            Mono::delay(760.millis()).await;
+            temperature_raw.lock(|temp| *temp = i16::from_be_bytes([buf[1], buf[2]]));
+
+            Mono::delay_until(now + 1.secs()).await;
         }
     }
 
     #[task(
         priority = 1,
-        local = [i2c1, lcd_resetn]
+        shared = [temperature_raw],
+        local = [i2c1, lcd_resetn, uart0]
     )]
     async fn task_lcd(ctx: task_lcd::Context) {
         const LCD_ADDRESS: u8 = 0x3e;
@@ -577,39 +576,32 @@ mod app {
             Mono::delay(3.secs()).await;
         }
 
+        let mut temperature_raw = ctx.shared.temperature_raw;
+
         loop {
             let delay = lcd.cmd_clear_display().unwrap();
             Mono::delay(delay.convert().into()).await;
 
-            let now = Mono::now();
+            {
+                let temp_raw = temperature_raw.lock(|temp| *temp);
+                let temp_int = temp_raw / 128;
+                let temp_frac = 78125_u32 * (temp_raw % 128).unsigned_abs() as u32;
 
-            let _ = lcd.cmd_write_chars(['H'.into()]).unwrap();
-            Mono::delay(125.millis()).await;
-            let _ = lcd.cmd_write_chars(['e'.into()]).unwrap();
-            Mono::delay(125.millis()).await;
-            let _ = lcd.cmd_write_chars(['l'.into()]).unwrap();
-            Mono::delay(125.millis()).await;
-            let _ = lcd.cmd_write_chars(['l'.into()]).unwrap();
-            Mono::delay(125.millis()).await;
-            let _ = lcd.cmd_write_chars(['o'.into()]).unwrap();
-            Mono::delay(125.millis()).await;
+                let now = Mono::now();
 
-            let delay = lcd
-                .cmd_set_ddram_address(st7032i::DDRAM_ADDRESS_LINE2 + 3)
-                .unwrap();
-            Mono::delay(delay.convert().into()).await;
+                write!(lcd, "Temp:").unwrap();
+                Mono::delay(st7032i::EXECUTION_TIME_SHORT.convert().into()).await;
 
-            let _ = lcd.cmd_write_chars(['W'.into()]).unwrap();
-            Mono::delay(125.millis()).await;
-            let _ = lcd.cmd_write_chars(['o'.into()]).unwrap();
-            Mono::delay(125.millis()).await;
-            let _ = lcd.cmd_write_chars(['r'.into()]).unwrap();
-            Mono::delay(125.millis()).await;
-            let _ = lcd.cmd_write_chars(['l'.into()]).unwrap();
-            Mono::delay(125.millis()).await;
-            let _ = lcd.cmd_write_chars(['d'.into()]).unwrap();
+                let delay = lcd
+                    .cmd_set_ddram_address(st7032i::DDRAM_ADDRESS_LINE2)
+                    .unwrap();
+                Mono::delay(delay.convert().into()).await;
 
-            Mono::delay_until(now + 3.secs()).await;
+                write!(lcd, "{:3}.{:04}", temp_int, temp_frac / 1000).unwrap();
+                Mono::delay(st7032i::EXECUTION_TIME_SHORT.convert().into()).await;
+
+                Mono::delay_until(now + 3.secs()).await;
+            }
         }
     }
 
