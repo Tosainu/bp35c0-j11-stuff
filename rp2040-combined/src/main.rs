@@ -39,7 +39,7 @@ mod app {
         Clock,
     };
 
-    use embedded_hal::digital::{OutputPin, StatefulOutputPin};
+    use embedded_hal::digital::OutputPin;
     use embedded_hal::spi::MODE_3 as SPI_MODE_3;
     use embedded_hal_0_2_x::blocking::spi::{Transfer as SpiTransfer, Write as SpiWrite};
 
@@ -213,7 +213,7 @@ mod app {
         let bp35c0_j11_resetn = pins.d11.into_push_pull_output_in_state(PinState::Low);
         let txs0108e_oe = pins.d10.into_push_pull_output_in_state(PinState::Low);
         let lcd_resetn = pins.d5.into_push_pull_output_in_state(PinState::Low);
-        let led = pins.d13.into_push_pull_output_in_state(PinState::High);
+        let led = pins.d13.into_push_pull_output_in_state(PinState::Low);
 
         let (uart1_rx, uart1_tx) = uart1.split();
         let (uart1_rx_sender, uart1_rx_receiver) = ctx.local.uart1_rx_queue.split();
@@ -251,9 +251,19 @@ mod app {
     #[task(priority = 1, local = [led])]
     async fn task_led_blink(ctx: task_led_blink::Context) {
         loop {
-            ctx.local.led.toggle().unwrap();
+            let now = Mono::now();
 
+            ctx.local.led.set_high().unwrap();
             Mono::delay(100.millis()).await;
+            ctx.local.led.set_low().unwrap();
+
+            Mono::delay(200.millis()).await;
+
+            ctx.local.led.set_high().unwrap();
+            Mono::delay(100.millis()).await;
+            ctx.local.led.set_low().unwrap();
+
+            Mono::delay_until(now + 1_500.millis()).await;
         }
     }
 
