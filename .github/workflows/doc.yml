@@ -1,0 +1,46 @@
+name: Doc
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4.1.7
+      - name: Setup Rust toolchains
+        run: |
+          channel=nightly-2024-08-22
+          rustup toolchain install "$channel" --no-self-update
+          rustup default "$channel"
+          rustup target add thumbv6m-none-eabi
+      - run: RUSTDOCFLAGS="--enable-index-page -Zunstable-options" cargo doc --no-deps --workspace
+      - uses: actions/upload-artifact@v4.4.0
+        with:
+          name: doc
+          path: target/thumbv6m-none-eabi/doc
+
+  deploy:
+    runs-on: ubuntu-22.04
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@v4.1.8
+        with:
+          name: doc
+          path: doc
+      - run: find
+      - uses: actions/configure-pages@v5.0.0
+      - uses: actions/upload-pages-artifact@v3.0.1
+        with:
+          path: doc
+      - uses: actions/deploy-pages@v4.0.5
+        id: deployment
