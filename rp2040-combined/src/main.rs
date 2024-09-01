@@ -43,6 +43,8 @@ mod app {
     use embedded_hal::spi::MODE_3 as SPI_MODE_3;
     use embedded_hal_0_2_x::blocking::spi::{Transfer as SpiTransfer, Write as SpiWrite};
 
+    use futures::FutureExt;
+
     use rtic_monotonics::rp2040::prelude::*;
     rp2040_timer_monotonic!(Mono);
 
@@ -451,7 +453,7 @@ mod app {
             let destination_address = 0xfe800000000000000000000000000000_u128
                 | (mac_address ^ 0x02000000_00000000) as u128;
 
-            for tid in 0.. {
+            'outer: for tid in 0.. {
                 let tid_be = ((tid & 0xffff) as u16).to_be_bytes();
 
                 'retry: loop {
@@ -465,7 +467,7 @@ mod app {
                             tid_be[0], tid_be[1], // TID
                             0x05, 0xff, 0x01, // SEOJ
                             0x02, 0x88, 0x01, // DEOJ
-                            0x62, // ESV
+                            0x62, // ESV (Get)
                             0x04, // OPC
                             0x97, // EPC (現在時刻設定)
                             0x00, // PDC
@@ -485,11 +487,13 @@ mod app {
                                 break 'retry;
                             } else {
                                 Mono::delay(1.secs()).await;
-                                continue 'retry;
+                                continue 'outer;
                             }
                         }
                     }
                 }
+
+                let now = Mono::now();
 
                 let data_expected = [
                     0x10, // EHD1
@@ -497,16 +501,33 @@ mod app {
                     tid_be[0], tid_be[1], // TID
                     0x02, 0x88, 0x01, // DEOJ
                     0x05, 0xff, 0x01, // SEOJ
+                    0x72, // ESV (Get_Res)
+                    0x04, // OPC
                 ];
-                'wait: while let Ok(resp) = rx.recv().await {
+
+                // TODO: スマートメーターは ESV = 0x73 (プロパティ値通知, INT) で次のプロパティを送ってきていそうなので使う
+                // - 定時積算電力量計測値 (正方向計測値) 0xEA
+                // - 定時積算電力量計測値 (逆方向計測値) 0xEB
+                //
+                // INFO  Rx: NotificationUdpReceived { source_address: REDACTED, source_port: 3610, destination_port: 3610, source_pan_id: REDACTED, source_type: 0, encryption: 2, rssi: -69, data: "[16, 129, 0, 1, 2, 136, 1, 5, 255, 1, 115, 2, 234, 11, 7, 232, 9, 1, 10, 30, 0, 0, 0, 28, 210, 235, 11, 7, 232, 9, 1, 10, 30, 0, 0, 0, 0, 21]" }
+
+                // TODO: セッション切れ対応…？
+
+                'wait: loop {
+                    let resp = futures::select_biased! {
+                        r = rx.recv().fuse() => r.ok(),
+                        _ = Mono::delay_until(now + 10.secs()).fuse() => None,
+                    };
+
                     match resp {
-                        Response::NotificationUdpReceived {
+                        Some(Response::NotificationUdpReceived {
                             source_port: 0x0e1a,
                             destination_port: 0x0e1a,
+                            source_type: 0x00,
                             data,
                             rssi,
                             ..
-                        } if data.starts_with(&data_expected) && data.len() == 34 => {
+                        }) if data.starts_with(&data_expected) && data.len() == 34 => {
                             // TODO: ちゃんとデータサイズとかチェックする
                             status.lock(|status| {
                                 *status = Bp35c0J11Status::Data {
@@ -523,11 +544,18 @@ mod app {
                             });
                             break 'wait;
                         }
-                        _ => (),
-                    };
+
+                        Some(_) => {}
+
+                        None => {
+                            #[cfg(feature = "defmt")]
+                            defmt::warn!("timeout");
+                            break 'wait;
+                        }
+                    }
                 }
 
-                Mono::delay(10.secs()).await;
+                Mono::delay_until(now + 10.secs()).await;
             }
         }
     }
@@ -749,27 +777,7 @@ mod app {
 
                         let now = Mono::now();
 
-                        write!(lcd, "Date:").unwrap();
-                        Mono::delay(st7032i::EXECUTION_TIME_SHORT.convert().into()).await;
-
-                        let delay = lcd
-                            .cmd_set_ddram_address(st7032i::DDRAM_ADDRESS_LINE2)
-                            .unwrap();
-                        Mono::delay(delay.convert().into()).await;
-
                         write!(lcd, "{:02}-{:02}-{:02}", year % 100, month, day).unwrap();
-                        Mono::delay(st7032i::EXECUTION_TIME_SHORT.convert().into()).await;
-
-                        Mono::delay_until(now + 3.secs()).await;
-                    }
-
-                    {
-                        let delay = lcd.cmd_clear_display().unwrap();
-                        Mono::delay(delay.convert().into()).await;
-
-                        let now = Mono::now();
-
-                        write!(lcd, "Time:").unwrap();
                         Mono::delay(st7032i::EXECUTION_TIME_SHORT.convert().into()).await;
 
                         let delay = lcd
