@@ -283,9 +283,16 @@ mod app {
 
             'retry: loop {
                 tx.send(Command::GetVersionInformation).unwrap();
-                match rx.recv().await {
-                    Ok(Response::GetVersionInformation { result: 0x01, .. }) => break 'retry,
-                    _ => Mono::delay(1.secs()).await,
+
+                while let Ok(resp) = rx.recv().await {
+                    if let Response::GetVersionInformation { result, .. } = resp {
+                        if result == 0x01 {
+                            break 'retry;
+                        } else {
+                            Mono::delay(1.secs()).await;
+                            continue 'retry;
+                        }
+                    }
                 }
             }
 
@@ -297,13 +304,20 @@ mod app {
                     tx_power: TxPower::P20mW,
                 })
                 .unwrap();
-                match rx.recv().await {
-                    Ok(Response::SetOperationMode { result: 0x01 }) => break 'retry,
-                    _ => Mono::delay(1.secs()).await,
+
+                while let Ok(resp) = rx.recv().await {
+                    if let Response::SetOperationMode { result, .. } = resp {
+                        if result == 0x01 {
+                            break 'retry;
+                        } else {
+                            Mono::delay(1.secs()).await;
+                            continue 'retry;
+                        }
+                    }
                 }
             }
 
-            let scan_result = 'retry: loop {
+            let channel = 'retry: loop {
                 tx.send(Command::DoActiveScan {
                     duration: ScanDuration::T616p96ms,
                     mask_channels: 0x3fff0,
@@ -316,34 +330,44 @@ mod app {
                 let mut scan_result = None;
                 while let Ok(resp) = rx.recv().await {
                     match resp {
-                        Response::DoActiveScan { result: 0x01 } => match scan_result {
-                            Some(channel) => break 'retry channel,
-                            _ => continue 'retry,
+                        Response::DoActiveScan { result } => match (result, scan_result.take()) {
+                            (0x01, Some(channel)) => break 'retry channel,
+                            _ => {
+                                Mono::delay(1.secs()).await;
+                                continue 'retry;
+                            }
                         },
                         Response::NotificationActiveScan { channel, terminal } => {
                             if !terminal.is_empty() {
                                 scan_result.replace(channel);
                             }
                         }
-                        _ => continue 'retry,
+                        _ => {}
                     }
                 }
             };
 
             #[cfg(feature = "defmt")]
-            defmt::info!("scan_result = {}", scan_result);
+            defmt::info!("channel = {}", channel);
 
             'retry: loop {
                 tx.send(Command::SetOperationMode {
                     mode: OperationMode::Dual,
                     han_sleep: false,
-                    channel: scan_result,
+                    channel,
                     tx_power: TxPower::P20mW,
                 })
                 .unwrap();
-                match rx.recv().await {
-                    Ok(Response::SetOperationMode { result: 0x01 }) => break 'retry,
-                    _ => Mono::delay(1.secs()).await,
+
+                while let Ok(resp) = rx.recv().await {
+                    if let Response::SetOperationMode { result, .. } = resp {
+                        if result == 0x01 {
+                            break 'retry;
+                        } else {
+                            Mono::delay(1.secs()).await;
+                            continue 'retry;
+                        }
+                    }
                 }
             }
 
@@ -353,32 +377,52 @@ mod app {
                     password: ROUTE_B_PASSWORD,
                 })
                 .unwrap();
-                match rx.recv().await {
-                    Ok(Response::SetRouteBPanaAuthenticationInformation { result: 0x01 }) => {
-                        break 'retry
+
+                while let Ok(resp) = rx.recv().await {
+                    if let Response::SetRouteBPanaAuthenticationInformation { result, .. } = resp {
+                        if result == 0x01 {
+                            break 'retry;
+                        } else {
+                            Mono::delay(1.secs()).await;
+                            continue 'retry;
+                        }
                     }
-                    _ => Mono::delay(1.secs()).await,
                 }
             }
 
             'retry: loop {
                 tx.send(Command::StartRouteBOperation).unwrap();
-                match rx.recv().await {
-                    Ok(Response::StartRouteBOperation { result: 0x01, .. }) => break 'retry,
-                    _ => Mono::delay(1.secs()).await,
+
+                while let Ok(resp) = rx.recv().await {
+                    if let Response::StartRouteBOperation { result, .. } = resp {
+                        if result == 0x01 {
+                            break 'retry;
+                        } else {
+                            Mono::delay(1.secs()).await;
+                            continue 'retry;
+                        }
+                    }
                 }
             }
 
             'retry: loop {
                 tx.send(Command::OpenUdpPort(0x0e1a)).unwrap();
-                match rx.recv().await {
-                    Ok(Response::OpenUdpPort { result: 0x01, .. }) => break 'retry,
-                    _ => Mono::delay(1.secs()).await,
+
+                while let Ok(resp) = rx.recv().await {
+                    if let Response::OpenUdpPort { result, .. } = resp {
+                        if result == 0x01 {
+                            break 'retry;
+                        } else {
+                            Mono::delay(1.secs()).await;
+                            continue 'retry;
+                        }
+                    }
                 }
             }
 
             let mac_address = 'retry: loop {
                 tx.send(Command::StartRouteBPana).unwrap();
+
                 'wait: while let Ok(resp) = rx.recv().await {
                     match resp {
                         Response::StartRouteBPana { result, .. } if result != 0x01 => break 'wait,
@@ -392,9 +436,11 @@ mod app {
                                 break 'wait;
                             }
                         }
-                        _ => (),
-                    };
+                        _ => {}
+                    }
                 }
+
+                Mono::delay(1.secs()).await;
             };
 
             #[cfg(feature = "defmt")]
@@ -407,6 +453,7 @@ mod app {
 
             for tid in 0.. {
                 let tid_be = ((tid & 0xffff) as u16).to_be_bytes();
+
                 'retry: loop {
                     tx.send(Command::TransmitData {
                         destination_address,
@@ -431,12 +478,14 @@ mod app {
                         ],
                     })
                     .unwrap();
-                    'wait: while let Ok(resp) = rx.recv().await {
+
+                    while let Ok(resp) = rx.recv().await {
                         if let Response::TransmitData { result, .. } = resp {
                             if result == 0x01 {
                                 break 'retry;
                             } else {
-                                break 'wait;
+                                Mono::delay(1.secs()).await;
+                                continue 'retry;
                             }
                         }
                     }
