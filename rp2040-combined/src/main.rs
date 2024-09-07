@@ -31,9 +31,10 @@ mod app {
     use bsp::{hal, XOSC_CRYSTAL_FREQ};
     use hal::{
         fugit::{ExtU64, RateExtU32},
-        gpio::{FunctionI2c, FunctionSio, FunctionSpi, FunctionUart},
+        gpio::{FunctionI2c, FunctionPio0, FunctionSio, FunctionSpi, FunctionUart},
         gpio::{PinState, PullDown, PullUp, SioOutput},
         i2c::I2C,
+        pio::PIOExt,
         spi::Spi,
         uart::{DataBits, StopBits, UartConfig, UartPeripheral},
         Clock,
@@ -98,6 +99,14 @@ mod app {
         }
     }
 
+    struct NeoPixel<S: hal::pio::ValidStateMachine>(hal::pio::Tx<S>);
+
+    impl<S: hal::pio::ValidStateMachine> NeoPixel<S> {
+        fn set_rgb(&mut self, r: u8, g: u8, b: u8) -> bool {
+            self.0.write(u32::from_be_bytes([g, r, b, 0]))
+        }
+    }
+
     #[derive(Clone, Copy)]
     pub enum Bp35c0J11Status {
         Initializing,
@@ -134,6 +143,7 @@ mod app {
         txs0108e_oe: Txs0108eOePin,
         lcd_resetn: LcdResetnPin,
         led: LedPin,
+        neopixel: NeoPixel<(hal::pac::PIO0, hal::pio::SM0)>,
         bp35c0_j11_parser: bp35c0_j11::Parser,
     }
 
@@ -209,6 +219,48 @@ mod app {
             SPI_MODE_3,
         );
 
+        // NeoPixel LED / WS2812 を PIO で制御する
+        // https://cdn-shop.adafruit.com/datasheets/WS2812.pdf
+        //
+        // RP2040 Datasheet にサンプルコードがあるが、勉強のため見ないで書いた
+        //
+        // WS2812 は1本の線で、データを次のフォーマットでエンコードして送る
+        //      ┌─────┐         ┌
+        //   0: │ T0H │   T0L   │   T0H: 0.35 us, T0L: 0.80 us, +/- 0.15 us
+        //      ┘     └─────────┘
+        //      ┌─────────┐     ┌
+        //   1: │   T1H   │ T1L │   T1H: 0.70 us, T1L: 0.60 us, +/- 0.15 us
+        //      ┘         └─────┘
+        //
+        // PIO の1クロックを約 0.1 us (sys_clk: 125 MHz, divisor: 12 + 128/256) として
+        // T0H: 0.3 us, T0L: 0.7 us, T1H: 0.7 us, T1L: 0.7 us 程度で制御する
+        //
+        // データは G, R, B の順で 8-bit ずつ、MSB-first で送る
+        // シフト方向を左にし、[31:8] にデータを詰めるのを想定
+
+        let neopixel: hal::gpio::Pin<_, FunctionPio0, _> = pins.neopixel.into_function();
+        let neopixel_pin_id = neopixel.id().num;
+        let program = pio_proc::pio_asm!(
+            ".side_set 1",
+            "loop:",
+            "   out x, 1 side 0",        // (1) L:1
+            "   jmp !x skip side 1 [2]", // (2) L:1, H:2
+            "   nop side 1 [3]",         // (3) H:1, H:2
+            "skip:",                     //
+            "   jmp loop side 0 [5]",    // (4) H:1, L:5
+        );
+        let (mut pio, sm0, _, _, _) = ctx.device.PIO0.split(&mut resets);
+        let installed = pio.install(&program.program).unwrap();
+        let (mut sm, _, tx) = hal::pio::PIOBuilder::from_installed_program(installed)
+            .clock_divisor_fixed_point(12, 128)
+            .autopull(true)
+            .pull_threshold(24)
+            .out_shift_direction(hal::pio::ShiftDirection::Left)
+            .side_set_pin_base(neopixel_pin_id)
+            .build(sm0);
+        sm.set_pindirs([(neopixel_pin_id, hal::pio::PinDir::Output)]);
+        sm.start();
+
         let spi0_csn_adt7310 = pins.d4.into_push_pull_output_in_state(PinState::High);
         let bp35c0_j11_resetn = pins.d11.into_push_pull_output_in_state(PinState::Low);
         let txs0108e_oe = pins.d10.into_push_pull_output_in_state(PinState::Low);
@@ -224,6 +276,7 @@ mod app {
         task_bp35c0_j11::spawn().unwrap();
         task_lcd::spawn().unwrap();
         task_led_blink::spawn().unwrap();
+        task_neopixel::spawn().unwrap();
 
         (
             Shared {
@@ -243,6 +296,7 @@ mod app {
                 txs0108e_oe,
                 lcd_resetn,
                 led,
+                neopixel: NeoPixel(tx),
                 bp35c0_j11_parser: bp35c0_j11::Parser::default(),
             },
         )
@@ -264,6 +318,20 @@ mod app {
             ctx.local.led.set_low().unwrap();
 
             Mono::delay_until(now + 1_500.millis()).await;
+        }
+    }
+
+    #[task(priority = 1, local = [neopixel])]
+    async fn task_neopixel(ctx: task_neopixel::Context) {
+        loop {
+            ctx.local.neopixel.set_rgb(0x01, 0x00, 0x00);
+            Mono::delay(500.millis()).await;
+            ctx.local.neopixel.set_rgb(0x00, 0x01, 0x00);
+            Mono::delay(500.millis()).await;
+            ctx.local.neopixel.set_rgb(0x00, 0x00, 0x01);
+            Mono::delay(500.millis()).await;
+            ctx.local.neopixel.set_rgb(0x00, 0x00, 0x00);
+            Mono::delay(500.millis()).await;
         }
     }
 
