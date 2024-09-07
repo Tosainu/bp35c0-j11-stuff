@@ -521,8 +521,6 @@ mod app {
                 //
                 // INFO  Rx: NotificationUdpReceived { source_address: REDACTED, source_port: 3610, destination_port: 3610, source_pan_id: REDACTED, source_type: 0, encryption: 2, rssi: -69, data: "[16, 129, 0, 1, 2, 136, 1, 5, 255, 1, 115, 2, 234, 11, 7, 232, 9, 1, 10, 30, 0, 0, 0, 28, 210, 235, 11, 7, 232, 9, 1, 10, 30, 0, 0, 0, 0, 21]" }
 
-                // TODO: セッション切れ対応…？
-
                 'wait: loop {
                     let resp = futures::select_biased! {
                         r = rx.recv().fuse() => r.ok(),
