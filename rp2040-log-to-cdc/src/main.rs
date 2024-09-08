@@ -67,7 +67,7 @@ enum State<'a> {
 }
 
 fn configure_pins(
-    pins: bsp::Pins,
+    pins: hal::gpio::Pins,
 ) -> (
     impl hal::uart::ValidUartPinout<hal::pac::UART1>,
     impl OutputPin,
@@ -75,9 +75,9 @@ fn configure_pins(
 ) {
     #[cfg(feature = "adafruit-feather-rp2040")]
     return (
-        (pins.d24.into_function(), pins.d25.into_function()),
-        pins.d11.into_push_pull_output(),
-        pins.d10.into_push_pull_output(),
+        (pins.gpio24.into_function(), pins.gpio25.into_function()),
+        pins.gpio11.into_push_pull_output(),
+        pins.gpio10.into_push_pull_output(),
     );
 
     #[cfg(feature = "rp-pico")]
@@ -116,7 +116,7 @@ fn main() -> ! {
     let timer = hal::Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
 
     let sio = hal::Sio::new(pac.SIO);
-    let pins = bsp::Pins::new(
+    let pins = hal::gpio::Pins::new(
         pac.IO_BANK0,
         pac.PADS_BANK0,
         sio.gpio_bank0,

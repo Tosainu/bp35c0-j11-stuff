@@ -38,20 +38,20 @@ fn main() -> ! {
     let mut timer = hal::Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
 
     let sio = hal::Sio::new(pac.SIO);
-    let pins = bsp::Pins::new(
+    let pins = hal::gpio::Pins::new(
         pac.IO_BANK0,
         pac.PADS_BANK0,
         sio.gpio_bank0,
         &mut pac.RESETS,
     );
 
-    let mut led = pins.d13.into_push_pull_output();
-    let mut lcd_resetn = pins.d5.into_push_pull_output();
+    let mut led = pins.gpio13.into_push_pull_output();
+    let mut lcd_resetn = pins.gpio7.into_push_pull_output();
 
     let mut i2c = I2C::i2c1(
         pac.I2C1,
-        pins.sda.reconfigure(),
-        pins.scl.reconfigure(),
+        pins.gpio2.reconfigure(),
+        pins.gpio3.reconfigure(),
         400.kHz(),
         &mut pac.RESETS,
         &clocks.system_clock,

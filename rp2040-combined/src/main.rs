@@ -178,14 +178,14 @@ mod app {
         .unwrap();
 
         let sio = hal::Sio::new(ctx.device.SIO);
-        let pins = bsp::Pins::new(
+        let pins = hal::gpio::Pins::new(
             ctx.device.IO_BANK0,
             ctx.device.PADS_BANK0,
             sio.gpio_bank0,
             &mut resets,
         );
 
-        let pins_uart = (pins.tx.into_function(), pins.rx.into_function());
+        let pins_uart = (pins.gpio0.into_function(), pins.gpio1.into_function());
         let uart0 = UartPeripheral::new(ctx.device.UART0, pins_uart, &mut resets)
             .enable(
                 UartConfig::new(115_200.Hz(), DataBits::Eight, None, StopBits::One),
@@ -193,7 +193,7 @@ mod app {
             )
             .unwrap();
 
-        let pins_uart = (pins.d24.into_function(), pins.d25.into_function());
+        let pins_uart = (pins.gpio24.into_function(), pins.gpio25.into_function());
         let mut uart1 = UartPeripheral::new(ctx.device.UART1, pins_uart, &mut resets)
             .enable(
                 UartConfig::new(115_200.Hz(), DataBits::Eight, None, StopBits::One),
@@ -204,17 +204,17 @@ mod app {
 
         let i2c1 = I2C::i2c1(
             ctx.device.I2C1,
-            pins.sda.reconfigure(),
-            pins.scl.reconfigure(),
+            pins.gpio2.reconfigure(),
+            pins.gpio3.reconfigure(),
             400.kHz(),
             &mut resets,
             &clocks.system_clock,
         );
 
         let pins_spi = (
-            pins.mosi.into_function(),
-            pins.miso.into_function(),
-            pins.sclk.into_function(),
+            pins.gpio19.into_function(),
+            pins.gpio20.into_function(),
+            pins.gpio18.into_function(),
         );
         let spi0 = Spi::<_, _, _, 8>::new(ctx.device.SPI0, pins_spi).init(
             &mut resets,
@@ -242,7 +242,7 @@ mod app {
         // データは G, R, B の順で 8-bit ずつ、MSB-first で送る
         // シフト方向を左にし、[31:8] にデータを詰めるのを想定
 
-        let neopixel: hal::gpio::Pin<_, FunctionPio0, _> = pins.neopixel.into_function();
+        let neopixel: hal::gpio::Pin<_, FunctionPio0, _> = pins.gpio16.into_function();
         let neopixel_pin_id = neopixel.id().num;
         let program = pio_proc::pio_asm!(
             ".side_set 1",
@@ -265,11 +265,11 @@ mod app {
         sm.set_pindirs([(neopixel_pin_id, hal::pio::PinDir::Output)]);
         sm.start();
 
-        let spi0_csn_adt7310 = pins.d4.into_push_pull_output_in_state(PinState::High);
-        let bp35c0_j11_resetn = pins.d11.into_push_pull_output_in_state(PinState::Low);
-        let txs0108e_oe = pins.d10.into_push_pull_output_in_state(PinState::Low);
-        let lcd_resetn = pins.d5.into_push_pull_output_in_state(PinState::Low);
-        let led = pins.d13.into_push_pull_output_in_state(PinState::Low);
+        let spi0_csn_adt7310 = pins.gpio6.into_push_pull_output_in_state(PinState::High);
+        let bp35c0_j11_resetn = pins.gpio11.into_push_pull_output_in_state(PinState::Low);
+        let txs0108e_oe = pins.gpio10.into_push_pull_output_in_state(PinState::Low);
+        let lcd_resetn = pins.gpio7.into_push_pull_output_in_state(PinState::Low);
+        let led = pins.gpio13.into_push_pull_output_in_state(PinState::Low);
 
         let (uart1_rx, uart1_tx) = uart1.split();
         let (uart1_rx_sender, uart1_rx_receiver) = ctx.local.uart1_rx_queue.split();

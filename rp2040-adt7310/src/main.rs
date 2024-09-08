@@ -46,14 +46,14 @@ fn main() -> ! {
     let mut timer = hal::Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
 
     let sio = hal::Sio::new(pac.SIO);
-    let pins = bsp::Pins::new(
+    let pins = hal::gpio::Pins::new(
         pac.IO_BANK0,
         pac.PADS_BANK0,
         sio.gpio_bank0,
         &mut pac.RESETS,
     );
 
-    let pins_uart = (pins.tx.into_function(), pins.rx.into_function());
+    let pins_uart = (pins.gpio0.into_function(), pins.gpio1.into_function());
     let mut uart = UartPeripheral::new(pac.UART0, pins_uart, &mut pac.RESETS)
         .enable(
             UartConfig::new(115_200.Hz(), DataBits::Eight, None, StopBits::One),
@@ -61,12 +61,12 @@ fn main() -> ! {
         )
         .unwrap();
 
-    let mut adt7310_csn = pins.d4.into_push_pull_output_in_state(PinState::High);
+    let mut adt7310_csn = pins.gpio6.into_push_pull_output_in_state(PinState::High);
 
     let pins_spi = (
-        pins.mosi.into_function(),
-        pins.miso.into_function(),
-        pins.sclk.into_function(),
+        pins.gpio19.into_function(),
+        pins.gpio20.into_function(),
+        pins.gpio18.into_function(),
     );
     let mut spi = Spi::<_, _, _, 8>::new(pac.SPI0, pins_spi).init(
         &mut pac.RESETS,
