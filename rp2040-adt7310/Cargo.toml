@@ -16,45 +16,34 @@ defmt = [
 ]
 
 [dependencies.adafruit-feather-rp2040]
-version = "0.8.0"
-default-features = false
-features = [
-  "boot2",
-  "critical-section-impl",
-  "rom-func-cache",
-  "rt",
-]
+workspace = true
 
 [dependencies.rp2040-hal]
-version = "0.10.2"
+workspace = true
 
 [dependencies.cortex-m]
-version = "0.7.7"
+workspace = true
 
 [dependencies.cortex-m-rt]
-version = "0.7.3"
+workspace = true
 
 [dependencies.embedded-hal]
-version = "1.0.0"
+workspace = true
 
 [dependencies.embedded_hal_0_2_x]
-package = "embedded-hal"
-version = "0.2.7"
-features = ["unproven"]
+workspace = true
 
 [dependencies.embedded-io]
-version = "0.6.1"
+workspace = true
 
 [dependencies.defmt]
-version = "0.3.8"
 optional = true
+workspace = true
 
 [dependencies.defmt-rtt]
-version = "0.4.1"
 optional = true
+workspace = true
 
 [dependencies.panic-probe]
-version = "0.3.2"
-default-features = false
-features = ["print-defmt"]
 optional = true
+workspace = true

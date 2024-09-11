@@ -20,67 +20,51 @@ defmt = [
 ]
 
 [dependencies.bp35c0-j11]
-path = "../bp35c0-j11"
+workspace = true
 
 [dependencies.route-b-secrets]
-path = "../route-b-secrets"
+workspace = true
 
 [dependencies.adafruit-feather-rp2040]
-version = "0.8.0"
-default-features = false
-features = [
-  "boot2",
-  "critical-section-impl",
-  "rom-func-cache",
-  "rt",
-]
 optional = true
+workspace = true
 
 [dependencies.rp-pico]
-version = "0.9.0"
-default-features = false
-features = [
-  "boot2",
-  "critical-section-impl",
-  "rom-func-cache",
-  "rt",
-]
 optional = true
+workspace = true
 
 [dependencies.rp2040-hal]
-version = "0.10.2"
+workspace = true
 
 [dependencies.cortex-m]
-version = "0.7.7"
+workspace = true
 
 [dependencies.cortex-m-rt]
-version = "0.7.3"
+workspace = true
 
 [dependencies.embedded-alloc]
-version = "0.5.1"
+workspace = true
 
 [dependencies.embedded-hal]
-version = "1.0.0"
+workspace = true
 
 [dependencies.embedded-io]
-version = "0.6.1"
+workspace = true
 
 [dependencies.usb-device]
-version = "0.3.2"
+workspace = true
 
 [dependencies.usbd-serial]
-version = "0.2.2"
+workspace = true
 
 [dependencies.defmt]
-version = "0.3.8"
 optional = true
+workspace = true
 
 [dependencies.defmt-rtt]
-version = "0.4.1"
 optional = true
+workspace = true
 
 [dependencies.panic-probe]
-version = "0.3.2"
-default-features = false
-features = ["print-defmt"]
 optional = true
+workspace = true
