@@ -1,7 +1,7 @@
 #![no_std]
 
 use embedded_hal_0_2_x::blocking::i2c::{AddressMode, Write, WriteIter};
-use fugit::NanosDurationU32;
+use fugit::{Duration, NanosDurationU32};
 
 pub struct One {}
 pub struct Two {}
@@ -70,25 +70,41 @@ pub enum Character {
 pub const DDRAM_ADDRESS_LINE1: u8 = 0x00;
 pub const DDRAM_ADDRESS_LINE2: u8 = 0x40;
 
-pub const EXECUTION_TIME_SHORT: NanosDurationU32 = NanosDurationU32::nanos(26_300);
-pub const EXECUTION_TIME_LONG: NanosDurationU32 = NanosDurationU32::micros(1_080);
+pub struct ExecutionTime(NanosDurationU32);
 
-pub struct St7032i<'a, I, W, A, N = Two, DH = Single>
+impl<const NOM: u32, const DENOM: u32> From<ExecutionTime> for Duration<u32, NOM, DENOM> {
+    fn from(v: ExecutionTime) -> Duration<u32, NOM, DENOM> {
+        v.0.convert()
+    }
+}
+
+impl<const NOM: u32, const DENOM: u32> From<ExecutionTime> for Duration<u64, NOM, DENOM> {
+    fn from(v: ExecutionTime) -> Duration<u64, NOM, DENOM> {
+        v.0.convert().into()
+    }
+}
+
+pub const EXECUTION_TIME_SHORT: ExecutionTime = ExecutionTime(NanosDurationU32::nanos(26_300));
+pub const EXECUTION_TIME_LONG: ExecutionTime = ExecutionTime(NanosDurationU32::micros(1_080));
+
+pub struct St7032i<'a, I, W, A, D, N = Two, DH = Single>
 where
     W: Write<A> + WriteIter<A>,
     A: AddressMode + Copy,
+    D: From<ExecutionTime>,
     N: DisplayRows,
     DH: CharacterHeight,
 {
     dev: &'a mut W,
     addr: A,
-    phantom: core::marker::PhantomData<(I, N, DH)>,
+    phantom: core::marker::PhantomData<(I, D, N, DH)>,
 }
 
-impl<'a, W, A, N, DH> St7032i<'a, Unknown, W, A, N, DH>
+impl<'a, W, A, D, N, DH> St7032i<'a, Unknown, W, A, D, N, DH>
 where
     W: Write<A> + WriteIter<A>,
     A: AddressMode + Copy,
+    D: From<ExecutionTime>,
     N: DisplayRows,
     DH: CharacterHeight,
 {
@@ -101,26 +117,27 @@ where
     }
 }
 
-impl<'a, I, W, A, N, DH> St7032i<'a, I, W, A, N, DH>
+impl<'a, I, W, A, D, N, DH> St7032i<'a, I, W, A, D, N, DH>
 where
     W: Write<A> + WriteIter<A>,
     A: AddressMode + Copy,
+    D: From<ExecutionTime>,
     N: DisplayRows,
     DH: CharacterHeight,
 {
     #[allow(clippy::type_complexity)]
     pub fn set_instruction_set<ITarget: InstructionSet>(
         mut self,
-    ) -> Result<(St7032i<'a, ITarget, W, A, N, DH>, NanosDurationU32), <W as Write<A>>::Error> {
+    ) -> Result<(St7032i<'a, ITarget, W, A, D, N, DH>, D), <W as Write<A>>::Error> {
         let value = 0b0011_0000 | N::value() | DH::value() | ITarget::value();
         self.write_raw(&[0b00_000000, value]).map(|_| {
             (
-                St7032i::<ITarget, W, A, N, DH> {
+                St7032i::<ITarget, W, A, D, N, DH> {
                     dev: self.dev,
                     addr: self.addr,
                     phantom: core::marker::PhantomData,
                 },
-                EXECUTION_TIME_SHORT,
+                EXECUTION_TIME_SHORT.into(),
             )
         })
     }
@@ -137,17 +154,18 @@ where
     }
 }
 
-impl<'a, I, W, A, N, DH> St7032i<'a, I, W, A, N, DH>
+impl<'a, I, W, A, D, N, DH> St7032i<'a, I, W, A, D, N, DH>
 where
     I: InstructionSet,
     W: Write<A> + WriteIter<A>,
     A: AddressMode + Copy,
+    D: From<ExecutionTime>,
     N: DisplayRows,
     DH: CharacterHeight,
 {
-    pub fn cmd_clear_display(&mut self) -> Result<NanosDurationU32, <W as Write<A>>::Error> {
+    pub fn cmd_clear_display(&mut self) -> Result<D, <W as Write<A>>::Error> {
         self.write_raw(&[0b00_000000, 0b0000_0001])
-            .map(|_| EXECUTION_TIME_LONG)
+            .map(|_| EXECUTION_TIME_LONG.into())
     }
 
     pub fn cmd_display_on_off(
@@ -155,7 +173,7 @@ where
         display: bool,
         cursor: bool,
         cursor_blink: bool,
-    ) -> Result<NanosDurationU32, <W as Write<A>>::Error> {
+    ) -> Result<D, <W as Write<A>>::Error> {
         let mut value = 0b0000_1000;
         if display {
             value |= 0b100;
@@ -167,22 +185,16 @@ where
             value |= 0b001;
         }
         self.write_raw(&[0b00_000000, value])
-            .map(|_| EXECUTION_TIME_SHORT)
+            .map(|_| EXECUTION_TIME_SHORT.into())
     }
 
-    pub fn cmd_set_ddram_address(
-        &mut self,
-        addr: u8,
-    ) -> Result<NanosDurationU32, <W as Write<A>>::Error> {
+    pub fn cmd_set_ddram_address(&mut self, addr: u8) -> Result<D, <W as Write<A>>::Error> {
         let value = 0b1000_0000 | (addr & 0b0111_1111);
         self.write_raw(&[0b00_000000, value])
-            .map(|_| EXECUTION_TIME_SHORT)
+            .map(|_| EXECUTION_TIME_SHORT.into())
     }
 
-    pub fn cmd_write_chars<C>(
-        &mut self,
-        chars: C,
-    ) -> Result<NanosDurationU32, <W as WriteIter<A>>::Error>
+    pub fn cmd_write_chars<C>(&mut self, chars: C) -> Result<D, <W as WriteIter<A>>::Error>
     where
         C: IntoIterator<Item = Character>,
         C::IntoIter: Iterator<Item = C::Item> + Clone,
@@ -192,51 +204,45 @@ where
                 .into_iter()
                 .map(|c| to_character_code(c).unwrap_or(0b0010_0000)),
         ))
-        .map(|_| EXECUTION_TIME_SHORT)
+        .map(|_| EXECUTION_TIME_SHORT.into())
     }
 
-    pub fn cmd_write_bytes<C>(
-        &mut self,
-        bytes: C,
-    ) -> Result<NanosDurationU32, <W as WriteIter<A>>::Error>
+    pub fn cmd_write_bytes<C>(&mut self, bytes: C) -> Result<D, <W as WriteIter<A>>::Error>
     where
         C: IntoIterator<Item = u8>,
         C::IntoIter: Iterator<Item = C::Item> + Clone,
     {
         self.write_iter_raw(stuff_control_bytes(bytes))
-            .map(|_| EXECUTION_TIME_SHORT)
+            .map(|_| EXECUTION_TIME_SHORT.into())
     }
 }
 
-impl<'a, W, A, N, DH> St7032i<'a, Normal, W, A, N, DH>
+impl<'a, W, A, D, N, DH> St7032i<'a, Normal, W, A, D, N, DH>
 where
     W: Write<A> + WriteIter<A>,
     A: AddressMode + Copy,
+    D: From<ExecutionTime>,
     N: DisplayRows,
     DH: CharacterHeight,
 {
-    pub fn cmd_set_cgram_address(
-        &mut self,
-        addr: u8,
-    ) -> Result<NanosDurationU32, <W as Write<A>>::Error> {
+    pub fn cmd_set_cgram_address(&mut self, addr: u8) -> Result<D, <W as Write<A>>::Error> {
         let value = 0b0100_0000 | (addr & 0b011_1111);
         self.write_raw(&[0b00_000000, value])
-            .map(|_| EXECUTION_TIME_SHORT)
+            .map(|_| EXECUTION_TIME_SHORT.into())
     }
 }
 
-impl<'a, W, A, N, DH> St7032i<'a, Extention, W, A, N, DH>
+impl<'a, W, A, D, N, DH> St7032i<'a, Extention, W, A, D, N, DH>
 where
     W: Write<A> + WriteIter<A>,
     A: AddressMode + Copy,
+    D: From<ExecutionTime>,
     N: DisplayRows,
     DH: CharacterHeight,
 {
-    pub fn cmd_internal_osc_frequency(
-        &mut self,
-    ) -> Result<NanosDurationU32, <W as Write<A>>::Error> {
+    pub fn cmd_internal_osc_frequency(&mut self) -> Result<D, <W as Write<A>>::Error> {
         self.write_raw(&[0b00_000000, 0b0001_0100])
-            .map(|_| EXECUTION_TIME_SHORT)
+            .map(|_| EXECUTION_TIME_SHORT.into())
     }
 
     pub fn cmd_power_icon_contrast_set(
@@ -244,7 +250,7 @@ where
         icon: bool,
         booster: bool,
         contrast_hi2: u8,
-    ) -> Result<NanosDurationU32, <W as Write<A>>::Error> {
+    ) -> Result<D, <W as Write<A>>::Error> {
         let mut value = 0b0101_0000 | (contrast_hi2 & 0b0011);
         if icon {
             value |= 0b1000;
@@ -253,36 +259,34 @@ where
             value |= 0b0100;
         }
         self.write_raw(&[0b00_000000, value])
-            .map(|_| EXECUTION_TIME_SHORT)
+            .map(|_| EXECUTION_TIME_SHORT.into())
     }
 
     pub fn cmd_follower_control(
         &mut self,
         enable: bool,
         ratio: u8,
-    ) -> Result<NanosDurationU32, <W as Write<A>>::Error> {
+    ) -> Result<D, <W as Write<A>>::Error> {
         let mut value = 0b0110_0000 | (ratio & 0b0111);
         if enable {
             value |= 0b1000;
         }
         self.write_raw(&[0b00_000000, value])
-            .map(|_| EXECUTION_TIME_SHORT)
+            .map(|_| EXECUTION_TIME_SHORT.into())
     }
 
-    pub fn cmd_contrast_set(
-        &mut self,
-        contrast_low4: u8,
-    ) -> Result<NanosDurationU32, <W as Write<A>>::Error> {
+    pub fn cmd_contrast_set(&mut self, contrast_low4: u8) -> Result<D, <W as Write<A>>::Error> {
         let value = 0b0111_0000 | (contrast_low4 & 0b0000_1111);
         self.write_raw(&[0b00_000000, value])
-            .map(|_| EXECUTION_TIME_SHORT)
+            .map(|_| EXECUTION_TIME_SHORT.into())
     }
 }
 
-impl<'a, W, A, N, DH> core::fmt::Write for St7032i<'a, Normal, W, A, N, DH>
+impl<'a, W, A, D, N, DH> core::fmt::Write for St7032i<'a, Normal, W, A, D, N, DH>
 where
     W: Write<A> + WriteIter<A>,
     A: AddressMode + Copy,
+    D: From<ExecutionTime>,
     N: DisplayRows,
     DH: CharacterHeight,
 {
