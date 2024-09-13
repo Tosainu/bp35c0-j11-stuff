@@ -2,6 +2,8 @@
 
 Wi-SUN モジュール [RHOM BP35C0-J11][bp35c0-j11] で遊んだり、ついでに RP2040 とか Rust の組み込み開発事情を調査してるリポジトリ。
 
+![DSC_3299](https://github.com/user-attachments/assets/c768902a-bf51-41c3-924d-a9f686e68ff2)
+
 - [`bp35c0-j11`](./bp35c0-j11)
     - BS35C0-J11 のコマンド・レスポンスを扱うライブラリ
     - RP2040 でも動かすために `no_std` (要 `alloc`) も想定
@@ -13,7 +15,7 @@ Wi-SUN モジュール [RHOM BP35C0-J11][bp35c0-j11] で遊んだり、ついで
 ![echonet](https://github.com/user-attachments/assets/b097a747-6711-4857-98f0-15640ad2191b)
 - [`rp2040-combined`](./rp2040-combined)
     - 後述のユニバーサル基板環境で、BP35C0-J11・温度センサー・LCD・LED を同時に扱うやつ, powered by [RTIC][rtic]
-    - スマートメーターから取得した値や温度センサーの測定値を LCD に表示するやつになる予定
+    - スマートメーターから取得した値や温度センサーの測定値を LCD に表示する (上の画像)
 - [`route-b-secrets`](./route-b-secrets)
     - Bルート認証ID やパスワードなどを雑にバイナリに埋め込むためのライブラリ
 - [`rp2040-akizuki-lcd-aqm0802`](./rp2040-akizuki-lcd-aqm0802) (BP35C0-J11 と関係なし)
