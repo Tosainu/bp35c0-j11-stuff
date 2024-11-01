@@ -14,7 +14,7 @@ jobs:
           - stable
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4.2.0
+      - uses: actions/checkout@v4.2.2
       - name: Setup Rust toolchains
         run: |
           rustup toolchain update "${{ matrix.rust }}" --no-self-update
@@ -26,7 +26,7 @@ jobs:
   fmt:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4.2.0
+      - uses: actions/checkout@v4.2.2
       - name: Setup Rust toolchains
         run: |
           rustup toolchain update stable --no-self-update
@@ -38,7 +38,7 @@ jobs:
   clippy:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4.2.0
+      - uses: actions/checkout@v4.2.2
       - name: Setup Rust toolchains
         run: |
           rustup toolchain update stable --no-self-update
