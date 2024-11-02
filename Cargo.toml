@@ -94,7 +94,7 @@ default-features = false
 features = ["thumbv6-backend"]
 
 [workspace.dependencies.rtic-monotonics]
-version = "2.0.2"
+version = "2.0.3"
 default-features = false
 features = ["rp2040"]
 
