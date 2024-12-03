@@ -34,7 +34,7 @@ features = [
 version = "0.7.7"
 
 [workspace.dependencies.cortex-m-rt]
-version = "0.7.3"
+version = "0.7.5"
 
 [workspace.dependencies.defmt]
 version = "0.3.8"
