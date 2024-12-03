@@ -154,7 +154,7 @@ where
     }
 }
 
-impl<'a, I, W, A, D, N, DH> St7032i<'a, I, W, A, D, N, DH>
+impl<I, W, A, D, N, DH> St7032i<'_, I, W, A, D, N, DH>
 where
     I: InstructionSet,
     W: Write<A> + WriteIter<A>,
@@ -217,7 +217,7 @@ where
     }
 }
 
-impl<'a, W, A, D, N, DH> St7032i<'a, Normal, W, A, D, N, DH>
+impl<W, A, D, N, DH> St7032i<'_, Normal, W, A, D, N, DH>
 where
     W: Write<A> + WriteIter<A>,
     A: AddressMode + Copy,
@@ -232,7 +232,7 @@ where
     }
 }
 
-impl<'a, W, A, D, N, DH> St7032i<'a, Extention, W, A, D, N, DH>
+impl<W, A, D, N, DH> St7032i<'_, Extention, W, A, D, N, DH>
 where
     W: Write<A> + WriteIter<A>,
     A: AddressMode + Copy,
@@ -282,7 +282,7 @@ where
     }
 }
 
-impl<'a, W, A, D, N, DH> core::fmt::Write for St7032i<'a, Normal, W, A, D, N, DH>
+impl<W, A, D, N, DH> core::fmt::Write for St7032i<'_, Normal, W, A, D, N, DH>
 where
     W: Write<A> + WriteIter<A>,
     A: AddressMode + Copy,

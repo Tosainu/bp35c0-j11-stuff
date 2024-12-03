@@ -24,9 +24,11 @@ static ALLOCATOR: Heap = Heap::empty();
 )]
 mod app {
     use crate::bsp;
+    use crate::ALLOCATOR;
 
     use core::fmt::Write;
     use core::mem::MaybeUninit;
+    use core::ptr::addr_of_mut;
 
     use bsp::{hal, XOSC_CRYSTAL_FREQ};
     use hal::{
@@ -156,7 +158,7 @@ mod app {
         {
             const HEAP_SIZE: usize = 8 * 1024;
             static mut HEAP: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
-            unsafe { crate::ALLOCATOR.init(HEAP.as_ptr() as usize, HEAP_SIZE) }
+            unsafe { ALLOCATOR.init(addr_of_mut!(HEAP) as usize, HEAP_SIZE) }
         }
 
         let mut resets = ctx.device.RESETS;
