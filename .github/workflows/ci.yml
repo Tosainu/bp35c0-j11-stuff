@@ -12,7 +12,7 @@ jobs:
         rust:
           - 1.80.1
           - stable
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4.2.2
       - name: Setup Rust toolchains
@@ -24,7 +24,7 @@ jobs:
       - run: cargo test --target "$(rustc -vV | grep host | cut -d' ' -f2)"
 
   fmt:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4.2.2
       - name: Setup Rust toolchains
@@ -36,7 +36,7 @@ jobs:
       - run: cargo fmt --check
 
   clippy:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4.2.2
       - name: Setup Rust toolchains
