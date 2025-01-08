@@ -75,6 +75,10 @@ version = "0.2.1"
 [workspace.dependencies.pio-proc]
 version = "0.2.2"
 
+[workspace.dependencies.portable-atomic]
+version = "1.10.0"
+features = ["critical-section"]
+
 [workspace.dependencies.rp2040-hal]
 version = "0.10.2"
 
