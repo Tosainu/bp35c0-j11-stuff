@@ -123,6 +123,7 @@ mod app {
             instant: u32,
             rssi: i8,
         },
+        Resetting,
     }
 
     #[shared]
@@ -615,15 +616,14 @@ mod app {
         ctx.local.txs0108e_oe.set_high().unwrap();
         Mono::delay(500.millis()).await;
 
-        ctx.local.bp35c0_j11_resetn.set_high().unwrap();
-
-        Mono::delay(500.millis()).await;
-
         let mut status = ctx.shared.bp35c0_j11_status;
         let rx = ctx.local.uart1_rx_receiver;
         let tx = ctx.local.uart1_tx;
 
         loop {
+            ctx.local.bp35c0_j11_resetn.set_high().unwrap();
+            Mono::delay(500.millis()).await;
+
             'retry: loop {
                 if let Ok(Response::NotificationPoweredOn) = rx.recv().await {
                     break 'retry;
@@ -800,7 +800,13 @@ mod app {
             let destination_address = 0xfe800000000000000000000000000000_u128
                 | (mac_address ^ 0x02000000_00000000) as u128;
 
+            let mut last_data = Mono::now();
+
             'outer: for tid in 0.. {
+                if Mono::now() >= last_data + 60.secs() {
+                    break 'outer;
+                }
+
                 let tid_be = ((tid & 0xffff) as u16).to_be_bytes();
 
                 'retry: loop {
@@ -889,6 +895,7 @@ mod app {
                                     rssi,
                                 }
                             });
+                            last_data = Mono::now();
                             break 'wait;
                         }
 
@@ -904,6 +911,17 @@ mod app {
 
                 Mono::delay_until(now + 10.secs()).await;
             }
+
+            #[cfg(feature = "defmt")]
+            defmt::warn!("reset");
+
+            status.lock(|status| {
+                *status = Bp35c0J11Status::Resetting;
+            });
+
+            // モジュールに power cycle をかけて復帰を試みる
+            ctx.local.bp35c0_j11_resetn.set_low().unwrap();
+            Mono::delay(500.millis()).await;
         }
     }
 
@@ -1079,6 +1097,18 @@ mod app {
 
             next = match next {
                 DisplayItem::Bp35c0J11(i) => match (bp35c0_j11_status.lock(|s| *s), i) {
+                    (Bp35c0J11Status::Resetting, _) => {
+                        write!(lcd, "BP35C0:").unwrap();
+                        Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
+
+                        linebreak(&mut lcd).await;
+
+                        write!(lcd, "Reset...").unwrap();
+                        Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
+
+                        DisplayItem::Temperature
+                    }
+
                     (Bp35c0J11Status::Initializing, _) => {
                         write!(lcd, "BP35C0:").unwrap();
                         Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
