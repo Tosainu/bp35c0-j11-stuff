@@ -12,7 +12,7 @@ fn panic(_: &core::panic::PanicInfo) -> ! {
 #[cfg(feature = "defmt")]
 use {defmt_rtt as _, panic_probe as _};
 
-use embedded_alloc::Heap;
+use embedded_alloc::LlffHeap as Heap;
 
 #[global_allocator]
 static ALLOCATOR: Heap = Heap::empty();
