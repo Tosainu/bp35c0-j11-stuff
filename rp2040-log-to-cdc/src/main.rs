@@ -8,12 +8,8 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::{vec, vec::Vec};
 
-#[cfg(feature = "adafruit-feather-rp2040")]
-use adafruit_feather_rp2040 as bsp;
-#[cfg(feature = "rp-pico")]
-use rp_pico as bsp;
+use rp2040_hal as hal;
 
-use bsp::{entry, hal, XOSC_CRYSTAL_FREQ};
 use hal::{
     fugit::{ExtU64, RateExtU32},
     timer::Instant,
@@ -34,6 +30,22 @@ use route_b_secrets::*;
 
 #[global_allocator]
 static ALLOCATOR: Heap = Heap::empty();
+
+#[link_section = ".boot2"]
+#[no_mangle]
+#[used]
+static BOOT2_FIRMWARE: [u8; 256] = {
+    #[cfg(feature = "adafruit-feather-rp2040")]
+    {
+        rp2040_boot2::BOOT_LOADER_GD25Q64CS
+    }
+    #[cfg(feature = "rp-pico")]
+    {
+        rp2040_boot2::BOOT_LOADER_W25Q080
+    }
+};
+
+const XOSC_CRYSTAL_FREQ: u32 = 12_000_000;
 
 #[cfg(not(feature = "defmt"))]
 #[panic_handler]
@@ -88,7 +100,7 @@ fn configure_pins(
     );
 }
 
-#[entry]
+#[hal::entry]
 fn main() -> ! {
     {
         use core::mem::MaybeUninit;

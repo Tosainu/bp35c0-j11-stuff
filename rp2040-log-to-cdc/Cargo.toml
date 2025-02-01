@@ -9,8 +9,8 @@ test = false
 
 [features]
 default = ["adafruit-feather-rp2040"]
-adafruit-feather-rp2040 = ["dep:adafruit-feather-rp2040"]
-rp-pico = ["dep:rp-pico"]
+adafruit-feather-rp2040 = []
+rp-pico = []
 defmt = [
   "dep:defmt",
   "dep:defmt-rtt",
@@ -23,17 +23,6 @@ defmt = [
 workspace = true
 
 [dependencies.route-b-secrets]
-workspace = true
-
-[dependencies.adafruit-feather-rp2040]
-optional = true
-workspace = true
-
-[dependencies.rp-pico]
-optional = true
-workspace = true
-
-[dependencies.rp2040-hal]
 workspace = true
 
 [dependencies.cortex-m]
@@ -49,6 +38,12 @@ workspace = true
 workspace = true
 
 [dependencies.embedded-io]
+workspace = true
+
+[dependencies.rp2040-boot2]
+workspace = true
+
+[dependencies.rp2040-hal]
 workspace = true
 
 [dependencies.usb-device]

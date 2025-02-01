@@ -20,16 +20,6 @@ path = "route-b-secrets"
 path = "st7032i"
 
 
-[workspace.dependencies.adafruit-feather-rp2040]
-version = "0.8.0"
-default-features = false
-features = [
-  "boot2",
-  "critical-section-impl",
-  "rom-func-cache",
-  "rt",
-]
-
 [workspace.dependencies.cortex-m]
 version = "0.7.7"
 
@@ -79,14 +69,13 @@ version = "0.2.2"
 version = "1.10.0"
 features = ["critical-section"]
 
+[workspace.dependencies.rp2040-boot2]
+version = "0.3.0"
+
 [workspace.dependencies.rp2040-hal]
 version = "0.10.2"
-
-[workspace.dependencies.rp-pico]
-version = "0.9.0"
 default-features = false
 features = [
-  "boot2",
   "critical-section-impl",
   "rom-func-cache",
   "rt",

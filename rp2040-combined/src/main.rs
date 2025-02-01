@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use adafruit_feather_rp2040 as bsp;
+use rp2040_hal as hal;
 
 #[cfg(not(feature = "defmt"))]
 #[panic_handler]
@@ -17,20 +17,24 @@ use embedded_alloc::Heap;
 #[global_allocator]
 static ALLOCATOR: Heap = Heap::empty();
 
+#[link_section = ".boot2"]
+#[no_mangle]
+#[used]
+static BOOT2_FIRMWARE: [u8; 256] = rp2040_boot2::BOOT_LOADER_GD25Q64CS;
+
 #[rtic::app(
-    device = bsp::hal::pac,
+    device = hal::pac,
     peripherals = true,
     dispatchers = [I2C0_IRQ]
 )]
 mod app {
-    use crate::bsp;
+    use crate::hal;
     use crate::ALLOCATOR;
 
     use core::fmt::Write;
     use core::mem::MaybeUninit;
     use core::ptr::addr_of_mut;
 
-    use bsp::{hal, XOSC_CRYSTAL_FREQ};
     use hal::{
         fugit::{ExtU64, RateExtU32},
         gpio::{FunctionI2c, FunctionPio0, FunctionSio, FunctionSpi, FunctionUart},
@@ -52,6 +56,8 @@ mod app {
     rp2040_timer_monotonic!(Mono);
 
     use route_b_secrets::{ROUTE_B_ID, ROUTE_B_PASSWORD};
+
+    const XOSC_CRYSTAL_FREQ: u32 = 12_000_000;
 
     type Uart0TxPin = hal::gpio::Pin<hal::gpio::bank0::Gpio0, FunctionUart, PullDown>;
     type Uart0RxPin = hal::gpio::Pin<hal::gpio::bank0::Gpio1, FunctionUart, PullDown>;

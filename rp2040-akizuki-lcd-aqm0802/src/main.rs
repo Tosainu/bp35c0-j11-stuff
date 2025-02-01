@@ -1,9 +1,8 @@
 #![no_std]
 #![no_main]
 
-use adafruit_feather_rp2040 as bsp;
+use rp2040_hal as hal;
 
-use bsp::{entry, hal, XOSC_CRYSTAL_FREQ};
 use hal::{fugit::RateExtU32, i2c::I2C};
 
 use embedded_hal::{delay::DelayNs, digital::OutputPin, i2c::I2c};
@@ -17,7 +16,14 @@ fn panic(_: &core::panic::PanicInfo) -> ! {
 #[cfg(feature = "defmt")]
 use {defmt_rtt as _, panic_probe as _};
 
-#[entry]
+#[link_section = ".boot2"]
+#[no_mangle]
+#[used]
+static BOOT2_FIRMWARE: [u8; 256] = rp2040_boot2::BOOT_LOADER_GD25Q64CS;
+
+const XOSC_CRYSTAL_FREQ: u32 = 12_000_000;
+
+#[hal::entry]
 fn main() -> ! {
     let mut pac = hal::pac::Peripherals::take().unwrap();
     let _core = hal::pac::CorePeripherals::take().unwrap();
