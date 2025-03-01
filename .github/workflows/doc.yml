@@ -21,7 +21,7 @@ jobs:
           rustup default "$channel"
           rustup target add thumbv6m-none-eabi
       - run: RUSTDOCFLAGS="--enable-index-page -Zunstable-options" cargo doc --no-deps --workspace
-      - uses: actions/upload-artifact@v4.6.0
+      - uses: actions/upload-artifact@v4.6.1
         with:
           name: doc
           path: target/thumbv6m-none-eabi/doc
