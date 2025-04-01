@@ -92,7 +92,7 @@ default-features = false
 features = ["rp2040"]
 
 [workspace.dependencies.rtic-sync]
-version = "1.3.0"
+version = "1.3.2"
 
 [workspace.dependencies.usb-device]
 version = "0.3.2"
