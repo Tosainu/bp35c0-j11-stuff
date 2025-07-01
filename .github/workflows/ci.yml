@@ -7,19 +7,9 @@ on:
 
 jobs:
   test:
-    strategy:
-      matrix:
-        rust:
-          - 1.80.1
-          - stable
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4.2.2
-      - name: Setup Rust toolchains
-        run: |
-          rustup toolchain update "${{ matrix.rust }}" --no-self-update
-          rustup default "${{ matrix.rust }}"
-          rustup target add thumbv6m-none-eabi
       - run: cargo check
       - run: cargo test --target "$(rustc -vV | grep host | cut -d' ' -f2)"
 
@@ -27,22 +17,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4.2.2
-      - name: Setup Rust toolchains
-        run: |
-          rustup toolchain update stable --no-self-update
-          rustup default stable
-          rustup target add thumbv6m-none-eabi
-          rustup component add clippy rustfmt
       - run: cargo fmt --check
 
   clippy:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4.2.2
-      - name: Setup Rust toolchains
-        run: |
-          rustup toolchain update stable --no-self-update
-          rustup default stable
-          rustup target add thumbv6m-none-eabi
-          rustup component add clippy rustfmt
       - run: cargo clippy -- -D warnings
