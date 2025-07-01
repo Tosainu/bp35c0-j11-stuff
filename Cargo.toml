@@ -66,7 +66,7 @@ version = "0.2.1"
 version = "0.2.2"
 
 [workspace.dependencies.portable-atomic]
-version = "1.11.0"
+version = "1.11.1"
 features = ["critical-section"]
 
 [workspace.dependencies.rp2040-boot2]
