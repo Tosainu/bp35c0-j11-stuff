@@ -117,12 +117,7 @@ fn main() -> ! {
         let temp = i16::from_be_bytes([buf[1], buf[2]]);
         let temp_int = temp / 128;
         let temp_frac = 78125_u32 * (temp % 128).unsigned_abs() as u32;
-        write!(
-            uart,
-            "\r\ntemp = {:3}.{:07} ({:#06x})",
-            temp_int, temp_frac, temp
-        )
-        .unwrap();
+        write!(uart, "\r\ntemp = {temp_int:3}.{temp_frac:07} ({temp:#06x})").unwrap();
 
         adt7310_csn.set_high().unwrap();
 

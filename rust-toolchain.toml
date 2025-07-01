@@ -1,0 +1,9 @@
+[toolchain]
+channel = "1.88.0"
+components = [
+  "cargo",
+  "clippy",
+  "rustc",
+  "rustfmt",
+]
+targets = ["thumbv6m-none-eabi"]

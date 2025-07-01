@@ -172,7 +172,7 @@ fn main() -> ! {
         let mut rx_buf = [0; 32];
         if let Ok(len) = uart.read_raw(&mut rx_buf) {
             for resp in rx_buf[0..len].iter().flat_map(|&c| parser.parse(c)) {
-                write!(usb_cdc.borrow_mut(), "[+] Rx: {:#x?}\r\n", resp).unwrap();
+                write!(usb_cdc.borrow_mut(), "[+] Rx: {resp:#x?}\r\n").unwrap();
                 if let State::WaitForResponse(ref mut f) = state {
                     if let Some(new_state) = f(resp) {
                         state = new_state;
@@ -182,7 +182,7 @@ fn main() -> ! {
         }
 
         let send = |cmd, f| {
-            write!(usb_cdc.borrow_mut(), "[+] Tx: {:#x?}\r\n", cmd).unwrap();
+            write!(usb_cdc.borrow_mut(), "[+] Tx: {cmd:#x?}\r\n").unwrap();
             let mut buf = vec![0; 128];
             let len = serialize_to_bytes(&cmd, &mut buf).unwrap();
             buf.resize(len, 0);

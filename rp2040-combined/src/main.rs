@@ -1159,7 +1159,7 @@ mod app {
 
                         linebreak(&mut lcd).await;
 
-                        write!(lcd, "   {:02}:{:02}", hour, min).unwrap();
+                        write!(lcd, "   {hour:02}:{min:02}").unwrap();
                         Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
 
                         DisplayItem::Bp35c0J11(DisplayItemBp35c0J11::Instant)
@@ -1171,7 +1171,7 @@ mod app {
 
                         linebreak(&mut lcd).await;
 
-                        write!(lcd, "{:>6} W", instant).unwrap();
+                        write!(lcd, "{instant:>6} W").unwrap();
                         Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
 
                         DisplayItem::Bp35c0J11(DisplayItemBp35c0J11::Rssi)
@@ -1183,7 +1183,7 @@ mod app {
 
                         linebreak(&mut lcd).await;
 
-                        write!(lcd, " {:>3} dBm", rssi).unwrap();
+                        write!(lcd, " {rssi:>3} dBm").unwrap();
                         Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
 
                         DisplayItem::Temperature
