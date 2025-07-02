@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+  pull_request:
 
 permissions:
   contents: read
@@ -14,13 +15,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4.2.2
-      - name: Setup Rust toolchains
-        run: |
-          channel=nightly-2024-08-22
+      - run: |
+          channel=nightly-2025-07-02
           rustup toolchain install "$channel" --no-self-update
-          rustup default "$channel"
-          rustup target add thumbv6m-none-eabi
-      - run: RUSTDOCFLAGS="--enable-index-page -Zunstable-options" cargo doc --no-deps --workspace
+          rustup "+$channel" target add thumbv6m-none-eabi
+          RUSTDOCFLAGS="--enable-index-page -Zunstable-options" cargo "+$channel" doc --no-deps --workspace
       - uses: actions/upload-artifact@v4.6.2
         with:
           name: doc
@@ -32,12 +31,12 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/download-artifact@v4.3.0
         with:
           name: doc
           path: doc
-      - run: find
       - uses: actions/configure-pages@v5.0.0
       - uses: actions/upload-pages-artifact@v3.0.1
         with:
