@@ -353,6 +353,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "edd0f118536f44f5ccd48bcb8b111bdc3de888b58c74639dfb034a357d0f206d"
 
 [[package]]
+name = "embedded-io"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9eb1aa714776b75c7e67e1da744b81a129b3ff919c8712b5e1b32252c1f07cc7"
+
+[[package]]
 name = "ena"
 version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1053,7 +1059,7 @@ dependencies = [
  "defmt-rtt",
  "embedded-hal 0.2.7",
  "embedded-hal 1.0.0",
- "embedded-io",
+ "embedded-io 0.7.1",
  "panic-probe",
  "rp2040-boot2",
  "rp2040-hal",
@@ -1094,7 +1100,7 @@ dependencies = [
  "embedded-alloc",
  "embedded-hal 0.2.7",
  "embedded-hal 1.0.0",
- "embedded-io",
+ "embedded-io 0.7.1",
  "futures",
  "panic-probe",
  "pio",
@@ -1124,7 +1130,7 @@ dependencies = [
  "embedded-hal 1.0.0",
  "embedded-hal-async",
  "embedded-hal-nb",
- "embedded-io",
+ "embedded-io 0.6.1",
  "frunk",
  "fugit",
  "itertools",
@@ -1164,7 +1170,7 @@ dependencies = [
  "defmt-rtt",
  "embedded-alloc",
  "embedded-hal 1.0.0",
- "embedded-io",
+ "embedded-io 0.7.1",
  "panic-probe",
  "route-b-secrets",
  "rp2040-boot2",
@@ -1564,7 +1570,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "065e4eaf93db81d5adac82d9cef8f8da314cb640fa7f89534b972383f1cf80fc"
 dependencies = [
  "embedded-hal 0.2.7",
- "embedded-io",
+ "embedded-io 0.6.1",
  "nb 1.1.0",
  "usb-device",
 ]
