@@ -55,7 +55,7 @@ default-features = false
 features = ["async-await"]
 
 [workspace.dependencies.panic-probe]
-version = "0.3.2"
+version = "1.0.0"
 default-features = false
 features = ["print-defmt"]
 
