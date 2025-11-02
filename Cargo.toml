@@ -63,7 +63,7 @@ features = ["print-defmt"]
 version = "0.2.1"
 
 [workspace.dependencies.pio-proc]
-version = "0.2.2"
+version = "0.3.0"
 
 [workspace.dependencies.portable-atomic]
 version = "1.11.1"
