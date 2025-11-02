@@ -60,7 +60,7 @@ default-features = false
 features = ["print-defmt"]
 
 [workspace.dependencies.pio]
-version = "0.2.1"
+version = "0.3.0"
 
 [workspace.dependencies.pio-proc]
 version = "0.2.2"
