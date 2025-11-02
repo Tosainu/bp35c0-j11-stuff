@@ -249,7 +249,7 @@ mod app {
 
         let neopixel: hal::gpio::Pin<_, FunctionPio0, _> = pins.gpio16.into_function();
         let neopixel_pin_id = neopixel.id().num;
-        let program = pio_proc::pio_asm!(
+        let program = pio::pio_asm!(
             ".side_set 1",
             "loop:",
             "   out x, 1 side 0",        // (1) L:1
