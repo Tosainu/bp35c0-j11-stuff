@@ -52,9 +52,6 @@ workspace = true
 [dependencies.portable-atomic]
 workspace = true
 
-[dependencies.pio-proc]
-workspace = true
-
 [dependencies.rp2040-boot2]
 workspace = true
 

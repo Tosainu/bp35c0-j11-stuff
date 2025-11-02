@@ -44,7 +44,7 @@ version = "0.2.7"
 features = ["unproven"]
 
 [workspace.dependencies.embedded-io]
-version = "0.6.1"
+version = "0.7.1"
 
 [workspace.dependencies.fugit]
 version = "0.3.7"
@@ -60,10 +60,7 @@ default-features = false
 features = ["print-defmt"]
 
 [workspace.dependencies.pio]
-version = "0.2.1"
-
-[workspace.dependencies.pio-proc]
-version = "0.2.2"
+version = "0.3.0"
 
 [workspace.dependencies.portable-atomic]
 version = "1.11.1"
@@ -99,6 +96,14 @@ version = "0.3.2"
 
 [workspace.dependencies.usbd-serial]
 version = "0.2.2"
+
+[patch.crates-io.rp2040-hal]
+git = "https://github.com/rp-rs/rp-hal.git"
+rev = "727d977bcfda1d36fa94c576b519b38c93c0e2bd"
+
+[patch.crates-io.usbd-serial]
+git = "https://github.com/rust-embedded-community/usbd-serial.git"
+rev = "822ae08a8a31f3be4a47eaf1a0b1149b4c4e5892"
 
 # cargo build/run
 [profile.dev]
