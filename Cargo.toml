@@ -63,7 +63,7 @@ features = ["print-defmt"]
 version = "0.3.0"
 
 [workspace.dependencies.portable-atomic]
-version = "1.11.1"
+version = "1.13.0"
 features = ["critical-section"]
 
 [workspace.dependencies.rp2040-boot2]
