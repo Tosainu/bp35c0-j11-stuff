@@ -9,18 +9,18 @@ jobs:
   test:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6.0.1
+      - uses: actions/checkout@v6.0.2
       - run: cargo check
       - run: cargo test --target "$(rustc -vV | grep host | cut -d' ' -f2)"
 
   fmt:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6.0.1
+      - uses: actions/checkout@v6.0.2
       - run: cargo fmt --check
 
   clippy:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6.0.1
+      - uses: actions/checkout@v6.0.2
       - run: cargo clippy -- -D warnings
