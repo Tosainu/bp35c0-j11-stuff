@@ -428,6 +428,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "fugit"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04ae150b98ef345142101da0a0b4ccfcc577bc8f5b9778b852e9427c667654d3"
+dependencies = [
+ "gcd",
+]
+
+[[package]]
 name = "futures"
 version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -995,7 +1004,7 @@ version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8288358786b1458fb2caac8c4b40fb529ef4200d6c46467e2695b7a8ba573ae8"
 dependencies = [
- "fugit",
+ "fugit 0.3.9",
 ]
 
 [[package]]
@@ -1080,7 +1089,7 @@ dependencies = [
  "embedded-hal-nb",
  "embedded-io",
  "frunk",
- "fugit",
+ "fugit 0.3.9",
  "itertools 0.10.5",
  "nb 1.1.0",
  "paste",
@@ -1190,7 +1199,7 @@ checksum = "99f9923ce32637ee40c0cb28fbbc2fad880d8aebea2d545918c6971ae9be3d17"
 dependencies = [
  "cfg-if",
  "cortex-m",
- "fugit",
+ "fugit 0.3.9",
  "portable-atomic",
  "rp2040-pac",
  "rtic-time",
@@ -1221,7 +1230,7 @@ dependencies = [
  "critical-section",
  "embedded-hal 1.0.0",
  "embedded-hal-async",
- "fugit",
+ "fugit 0.3.9",
  "futures-util",
  "rtic-common",
 ]
@@ -1319,7 +1328,7 @@ name = "st7032i"
 version = "0.1.0"
 dependencies = [
  "embedded-hal 0.2.7",
- "fugit",
+ "fugit 0.4.0",
 ]
 
 [[package]]
