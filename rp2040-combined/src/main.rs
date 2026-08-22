@@ -1075,8 +1075,8 @@ mod app {
 
         #[derive(Clone, Copy)]
         enum DisplayItemBp35c0J11 {
-            Datetime,
-            Instant,
+            Date,
+            Time,
             Rssi,
         }
 
@@ -1086,128 +1086,72 @@ mod app {
             Temperature,
         }
 
-        let mut next = DisplayItem::Bp35c0J11(DisplayItemBp35c0J11::Datetime);
+        let mut next = DisplayItem::Bp35c0J11(DisplayItemBp35c0J11::Date);
 
         loop {
+            let now = Mono::now();
+
             let delay = lcd.cmd_clear_display().unwrap();
             Mono::delay(delay).await;
 
-            let now = Mono::now();
-
-            let linebreak = |lcd: &mut st7032i::St7032i<_, _, _, Duration>| {
-                let delay = lcd
-                    .cmd_set_ddram_address(st7032i::DDRAM_ADDRESS_LINE2)
-                    .unwrap();
-                Mono::delay(delay)
-            };
+            let status = bp35c0_j11_status.lock(|s| *s);
 
             next = match next {
-                DisplayItem::Bp35c0J11(i) => match (bp35c0_j11_status.lock(|s| *s), i) {
+                DisplayItem::Bp35c0J11(i) => match (status, i) {
                     (Bp35c0J11Status::Resetting, _) => {
-                        write!(lcd, "BP35C0:").unwrap();
-                        Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
-
-                        linebreak(&mut lcd).await;
-
                         write!(lcd, "Reset...").unwrap();
-                        Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
-
                         DisplayItem::Temperature
                     }
-
                     (Bp35c0J11Status::Initializing, _) => {
-                        write!(lcd, "BP35C0:").unwrap();
-                        Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
-
-                        linebreak(&mut lcd).await;
-
                         write!(lcd, " Init...").unwrap();
-                        Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
-
                         DisplayItem::Temperature
                     }
-
                     (Bp35c0J11Status::Scanning, _) => {
-                        write!(lcd, "BP35C0:").unwrap();
-                        Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
-
-                        linebreak(&mut lcd).await;
-
                         write!(lcd, " Scan...").unwrap();
-                        Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
-
                         DisplayItem::Temperature
                     }
-
                     (Bp35c0J11Status::Ready, _) => {
-                        write!(lcd, "BP35C0:").unwrap();
-                        Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
-
-                        linebreak(&mut lcd).await;
-
                         write!(lcd, "  Ready!").unwrap();
-                        Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
-
                         DisplayItem::Temperature
                     }
-
-                    (Bp35c0J11Status::Data { datetime, .. }, DisplayItemBp35c0J11::Datetime) => {
-                        let (year, month, day, hour, min) = datetime;
-
+                    (Bp35c0J11Status::Data { datetime, .. }, DisplayItemBp35c0J11::Date) => {
+                        let (year, month, day, _hour, _min) = datetime;
                         write!(lcd, "{:02}-{:02}-{:02}", year % 100, month, day).unwrap();
-                        Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
-
-                        linebreak(&mut lcd).await;
-
-                        write!(lcd, "   {hour:02}:{min:02}").unwrap();
-                        Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
-
-                        DisplayItem::Bp35c0J11(DisplayItemBp35c0J11::Instant)
+                        DisplayItem::Bp35c0J11(DisplayItemBp35c0J11::Time)
                     }
-
-                    (Bp35c0J11Status::Data { instant, .. }, DisplayItemBp35c0J11::Instant) => {
-                        write!(lcd, "Instant:").unwrap();
-                        Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
-
-                        linebreak(&mut lcd).await;
-
-                        write!(lcd, "{instant:>6} W").unwrap();
-                        Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
-
+                    (Bp35c0J11Status::Data { datetime, .. }, DisplayItemBp35c0J11::Time) => {
+                        let (_year, _month, _day, hour, min) = datetime;
+                        write!(lcd, "   {hour:02}:{min:02}").unwrap();
                         DisplayItem::Bp35c0J11(DisplayItemBp35c0J11::Rssi)
                     }
-
                     (Bp35c0J11Status::Data { rssi, .. }, DisplayItemBp35c0J11::Rssi) => {
-                        write!(lcd, "RSSI:").unwrap();
-                        Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
-
-                        linebreak(&mut lcd).await;
-
                         write!(lcd, " {rssi:>3} dBm").unwrap();
-                        Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
-
                         DisplayItem::Temperature
                     }
                 },
-
                 DisplayItem::Temperature => {
                     let temp_raw = temperature_raw.lock(|temp| *temp);
                     let temp_int = temp_raw / 128;
                     let temp_frac = 78125_u32 * (temp_raw % 128).unsigned_abs() as u32;
-
-                    write!(lcd, "Temp:").unwrap();
-                    Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
-
-                    linebreak(&mut lcd).await;
-
-                    write!(lcd, "{:3}.{:04}", temp_int, temp_frac / 1000).unwrap();
-                    Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
-
-                    DisplayItem::Bp35c0J11(DisplayItemBp35c0J11::Datetime)
+                    write!(lcd, "{:2}.{:03} C", temp_int, temp_frac / 10000).unwrap();
+                    DisplayItem::Bp35c0J11(DisplayItemBp35c0J11::Date)
                 }
             };
 
-            Mono::delay_until(now + 3.secs()).await;
+            Mono::delay(st7032i::EXECUTION_TIME_SHORT.into()).await;
+
+            let delay = lcd
+                .cmd_set_ddram_address(st7032i::DDRAM_ADDRESS_LINE2)
+                .unwrap();
+            Mono::delay(delay).await;
+
+            if let Bp35c0J11Status::Data { instant, .. } = status {
+                write!(lcd, "{instant:>6} W").unwrap();
+            } else {
+                write!(lcd, "------ W").unwrap();
+            }
+
+            Mono::delay_until(now + 2.secs().max(st7032i::EXECUTION_TIME_SHORT.into())).await;
         }
     }
 
