@@ -126,7 +126,7 @@ mod app {
         Ready,
         Data {
             datetime: (u16, u8, u8, u8, u8),
-            instant: u32,
+            instant: i32,
             rssi: i8,
         },
         Resetting,
@@ -338,17 +338,17 @@ mod app {
     async fn task_neopixel(ctx: task_neopixel::Context) {
         // misc/hsv2rgb.rs で生成
         static TABLE: [u32; 256] = [
-            0x00_00_05_00,
-            0x00_00_05_00,
-            0x00_00_05_00,
-            0x00_00_05_00,
-            0x00_00_05_00,
-            0x00_00_05_00,
-            0x00_00_05_00,
-            0x00_00_05_00,
-            0x00_00_05_00,
-            0x00_00_05_00,
-            0x00_00_05_00,
+            0x00_00_01_00,
+            0x00_00_01_00,
+            0x00_00_02_00,
+            0x00_00_02_00,
+            0x00_00_02_00,
+            0x00_00_03_00,
+            0x00_00_03_00,
+            0x00_00_03_00,
+            0x00_00_04_00,
+            0x00_00_04_00,
+            0x00_00_04_00,
             0x00_00_05_00,
             0x00_00_05_00,
             0x01_00_05_00,
@@ -599,13 +599,19 @@ mod app {
         let mut bp35c0_j11_status = ctx.shared.bp35c0_j11_status;
 
         loop {
-            if let Bp35c0J11Status::Data { instant, .. } = bp35c0_j11_status.lock(|status| *status)
-            {
+            match bp35c0_j11_status.lock(|status| *status) {
+                // マイナス電力 (売電時) はひかえめな紫🟪
+                Bp35c0J11Status::Data { instant, .. } if instant.is_negative() => {
+                    ctx.local.neopixel.set_rgb(1, 0, 2);
+                }
                 // 2500 W あたりで最高輝度にする
-                let i = ((instant as usize * (TABLE.len() - 1)) / 2500).min(TABLE.len() - 1);
-                ctx.local.neopixel.set_raw(TABLE[i]);
-            } else {
-                ctx.local.neopixel.set_rgb(0, 0, 0);
+                Bp35c0J11Status::Data { instant, .. } => {
+                    let i = ((instant as usize * (TABLE.len() - 1)) / 2500).min(TABLE.len() - 1);
+                    ctx.local.neopixel.set_raw(TABLE[i]);
+                }
+                _ => {
+                    ctx.local.neopixel.set_rgb(0, 0, 0);
+                }
             }
             Mono::delay(1.secs()).await;
         }
@@ -895,7 +901,7 @@ mod app {
                                         data[14],                                 // hour
                                         data[15],                                 // min
                                     ),
-                                    instant: u32::from_be_bytes([
+                                    instant: i32::from_be_bytes([
                                         data[30], data[31], data[32], data[33],
                                     ]),
                                     rssi,
