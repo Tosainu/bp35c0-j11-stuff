@@ -170,7 +170,9 @@ fn make_response(code: u16, data: &[u8]) -> Response {
             Response::NotificationActiveScan {
                 channel: (*channel).into(),
                 terminal: data
-                    .chunks_exact(11)
+                    .as_chunks::<11>()
+                    .0
+                    .iter()
                     .map(|b| TerminalInformation {
                         mac_address: u64::from_be_bytes(b[0..8].try_into().unwrap()),
                         pan_id: u16::from_be_bytes(b[8..10].try_into().unwrap()),

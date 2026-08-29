@@ -692,10 +692,10 @@ mod app {
                                 continue 'retry;
                             }
                         },
-                        Response::NotificationActiveScan { channel, terminal } => {
-                            if !terminal.is_empty() {
-                                scan_result.replace(channel);
-                            }
+                        Response::NotificationActiveScan { channel, terminal }
+                            if !terminal.is_empty() =>
+                        {
+                            scan_result.replace(channel);
                         }
                         _ => {}
                     }
