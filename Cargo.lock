@@ -1185,9 +1185,9 @@ dependencies = [
 
 [[package]]
 name = "rtic-monotonics"
-version = "2.1.0"
+version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99f9923ce32637ee40c0cb28fbbc2fad880d8aebea2d545918c6971ae9be3d17"
+checksum = "d12a5e827e4a491affc0296b7c33242f03c02ef70150f93912cc9c77bb071f65"
 dependencies = [
  "cfg-if",
  "cortex-m",
