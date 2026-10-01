@@ -828,8 +828,18 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0ba4153cee9585abc451271aa437d9e8defdea8b468d48ba6b8f098cbe03d7f"
 dependencies = [
- "pio-core",
- "pio-proc",
+ "pio-core 0.3.0",
+ "pio-proc 0.3.0",
+]
+
+[[package]]
+name = "pio"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce87cc2ae64a1a4762187711318d0a8cb02156a65c9995d6dec8e80e49e291c9"
+dependencies = [
+ "pio-core 0.4.0",
+ "pio-proc 0.4.0",
 ]
 
 [[package]]
@@ -844,6 +854,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "pio-core"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6aef8a374e3bdcd09ec42c66a1dd8791aea2d9f04940e3c8705cba3929a4a23"
+dependencies = [
+ "arrayvec",
+ "num_enum",
+ "paste",
+]
+
+[[package]]
 name = "pio-parser"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -851,7 +872,18 @@ checksum = "825266c1eaddf54f636d06eefa4bf3c99d774c14ec46a4a6c6e5128a0f10d205"
 dependencies = [
  "lalrpop",
  "lalrpop-util",
- "pio-core",
+ "pio-core 0.3.0",
+]
+
+[[package]]
+name = "pio-parser"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16fca7f9edb551c6c96381ab4b0942aadcbd39b04c9b55ac0001cf148732d8e8"
+dependencies = [
+ "lalrpop",
+ "lalrpop-util",
+ "pio-core 0.4.0",
 ]
 
 [[package]]
@@ -862,9 +894,24 @@ checksum = "ed4a76571f5fe51af43cc80ac870fe0c79cc0cdd686b9002a6c4c84bfdd0176b"
 dependencies = [
  "codespan-reporting",
  "lalrpop-util",
- "pio-core",
- "pio-parser",
+ "pio-core 0.3.0",
+ "pio-parser 0.3.0",
  "proc-macro-error2",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.114",
+]
+
+[[package]]
+name = "pio-proc"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "339ee023278020b3459822d0efdc53221479c27235e222871a07da2aeb23df07"
+dependencies = [
+ "codespan-reporting",
+ "lalrpop-util",
+ "pio-core 0.4.0",
+ "pio-parser 0.4.0",
  "proc-macro2",
  "quote",
  "syn 2.0.114",
@@ -1055,7 +1102,7 @@ dependencies = [
  "embedded-io",
  "futures",
  "panic-probe",
- "pio",
+ "pio 0.4.0",
  "portable-atomic",
  "route-b-secrets",
  "rp2040-boot2",
@@ -1087,7 +1134,7 @@ dependencies = [
  "itertools 0.10.5",
  "nb 1.1.0",
  "paste",
- "pio",
+ "pio 0.3.0",
  "rand_core",
  "rp-binary-info",
  "rp-hal-common",
