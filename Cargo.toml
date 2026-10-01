@@ -60,7 +60,7 @@ default-features = false
 features = ["print-defmt"]
 
 [workspace.dependencies.pio]
-version = "0.3.0"
+version = "0.4.0"
 
 [workspace.dependencies.portable-atomic]
 version = "1.13.1"
