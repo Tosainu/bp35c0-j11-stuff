@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
       - run: |
-          channel=nightly-2025-07-02
+          channel=nightly-2026-10-18
           rustup toolchain install "$channel" --no-self-update
           rustup "+$channel" target add thumbv6m-none-eabi
           RUSTDOCFLAGS="--enable-index-page -Zunstable-options" cargo "+$channel" doc --no-deps --workspace
