@@ -1213,9 +1213,9 @@ dependencies = [
 
 [[package]]
 name = "rtic-sync"
-version = "1.5.0"
+version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b127780c430a1203a36a2892f9f98340cf3580935aac2c7d809c366f8bb4ee95"
+checksum = "32eda24d51c95fe3d2cce85a63296fea042b810f99073dda26aadf9f1f175cfa"
 dependencies = [
  "critical-section",
  "embedded-hal 1.0.0",
