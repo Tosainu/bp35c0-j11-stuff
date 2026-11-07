@@ -1343,7 +1343,7 @@ name = "st7032i"
 version = "0.1.0"
 dependencies = [
  "embedded-hal 0.2.7",
- "fugit 0.3.9",
+ "fugit 0.6.0",
 ]
 
 [[package]]
