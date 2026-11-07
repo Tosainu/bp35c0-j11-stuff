@@ -47,7 +47,7 @@ features = ["unproven"]
 version = "0.7.1"
 
 [workspace.dependencies.fugit]
-version = "0.3.9"
+version = "0.6.0"
 
 [workspace.dependencies.futures]
 version = "0.3.32"
@@ -84,7 +84,7 @@ default-features = false
 features = ["thumbv6-backend"]
 
 [workspace.dependencies.rtic-monotonics]
-version = "2.1.0"
+version = "3.0.0"
 default-features = false
 features = ["rp2040"]
 

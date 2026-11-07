@@ -72,20 +72,20 @@ pub const DDRAM_ADDRESS_LINE2: u8 = 0x40;
 
 pub struct ExecutionTime(NanosDurationU32);
 
-impl<const NOM: u32, const DENOM: u32> From<ExecutionTime> for Duration<u32, NOM, DENOM> {
+impl<const NOM: u64, const DENOM: u64> From<ExecutionTime> for Duration<u32, NOM, DENOM> {
     fn from(v: ExecutionTime) -> Duration<u32, NOM, DENOM> {
         v.0.convert()
     }
 }
 
-impl<const NOM: u32, const DENOM: u32> From<ExecutionTime> for Duration<u64, NOM, DENOM> {
+impl<const NOM: u64, const DENOM: u64> From<ExecutionTime> for Duration<u64, NOM, DENOM> {
     fn from(v: ExecutionTime) -> Duration<u64, NOM, DENOM> {
         v.0.convert().into()
     }
 }
 
-pub const EXECUTION_TIME_SHORT: ExecutionTime = ExecutionTime(NanosDurationU32::nanos(26_300));
-pub const EXECUTION_TIME_LONG: ExecutionTime = ExecutionTime(NanosDurationU32::micros(1_080));
+pub const EXECUTION_TIME_SHORT: ExecutionTime = ExecutionTime(NanosDurationU32::from_nanos(26_300));
+pub const EXECUTION_TIME_LONG: ExecutionTime = ExecutionTime(NanosDurationU32::from_micros(1_080));
 
 pub struct St7032i<'a, I, W, A, D, N = Two, DH = Single>
 where
