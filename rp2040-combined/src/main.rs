@@ -36,7 +36,7 @@ mod app {
     use core::ptr::addr_of_mut;
 
     use hal::{
-        fugit::{ExtU64, RateExtU32},
+        fugit::RateExtU32,
         gpio::{FunctionI2c, FunctionPio0, FunctionSio, FunctionSpi, FunctionUart},
         gpio::{PinState, PullDown, PullUp, SioOutput},
         i2c::I2C,
@@ -279,7 +279,7 @@ mod app {
         let (uart1_rx, uart1_tx) = uart1.split();
         let (uart1_rx_sender, uart1_rx_receiver) = ctx.local.uart1_rx_queue.split();
 
-        Mono::start(ctx.device.TIMER, &resets);
+        Mono::start(ctx.device.TIMER, &resets, Priority::rtic_default());
 
         task_adt7310::spawn().unwrap();
         task_bp35c0_j11::spawn().unwrap();
